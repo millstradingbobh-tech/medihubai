@@ -16,7 +16,6 @@ export async function chat(request: any) {
 
     const input = buildOpenAIInput(getSession(sessionId));
 
-    // Call OpenAI
     const response = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
@@ -40,7 +39,6 @@ export async function chat(request: any) {
 
     addMessage(sessionId, "assistant", assistantText);
 
-    console.log(resJson);
 
     return {
         sessionId,
