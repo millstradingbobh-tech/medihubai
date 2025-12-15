@@ -1,0 +1,4 @@
+const MAGENTO_BASE_URL = process.env.MAGENTO_BASE_URL;
+const MAGENTO_TOKEN = process.env.MAGENTO_TOKEN;
+
+export { MAGENTO_BASE_URL, MAGENTO_TOKEN }
