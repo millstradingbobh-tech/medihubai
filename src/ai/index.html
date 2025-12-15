@@ -58,7 +58,7 @@
       const productId = document.getElementById('productId').value.trim();
 
       try {
-        const response = await fetch('http://10.10.10.205:8080/api/openai/generateProductQuestions', {
+        const response = await fetch('/api/openai/generateProductQuestions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -110,7 +110,7 @@
           const productId = document.getElementById('productId').value.trim();
     
       try {
-          const response = await fetch('http://10.10.10.205:8080/api/openai/chat', {
+          const response = await fetch('/api/openai/chat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
