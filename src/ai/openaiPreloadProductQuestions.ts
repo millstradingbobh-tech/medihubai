@@ -1,9 +1,9 @@
 import { OpenAI } from "openai";
-import { OPENAI_API_KEY } from './access';
-import { getMagentoProductById as getProduct } from "../magento/getProductDetail";
-import { addMessage, buildOpenAIInput, getFirstMessage, getSession, setProductDetail } from "./chatSession";
+import { OPENAI_API_KEY, OPENAI_VERSION } from './access';
+import { getProductById } from "../sanity/getProductById";
+import { addMessage, buildOpenAIInput, getFirstMessage, getSession, setGenericRefund, setProductDetail, setProductPdf, getShippingPolicy } from "./chatSession";
 
-const openai = new OpenAI({
+export const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 interface Product {
@@ -20,12 +20,16 @@ function removeHtmlTags(str: string) {
 export async function generateQuestions(req: any, res: any): Promise<string[]> {
 
   const body = req.body;
-  const productResult = await getProduct(req);
-  const product = productResult;
-
+  const productResult = await getProductById(req);
+  const product = productResult.result;
+// console.log(product)
   setProductDetail(product);
+  // getShippingPolicy(product);
+  setGenericRefund();
+  // await setProductPdf(product);
 
-  const shortDesc = product?.custom_attributes?.find((item)=>{ return item.attribute_code === 'short_description'})?.value ?? '';
+  const shortDesc = product?.store.descriptionHtml;
+
   const systemPrompt = `
 You are a customer support assistant for an online store.
 
@@ -47,11 +51,13 @@ Please generate 3 questions.
   try {
 
     addMessage(req.body.sessionId, "system", systemPrompt);
+
+    const messages: any = buildOpenAIInput(getSession(req.body.sessionId))
     
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: buildOpenAIInput(getSession(req.body.sessionId)),
-      max_tokens: null,
+      model: OPENAI_VERSION,
+      messages,
+      max_tokens: 512
     });
 
     const rawContent = response.choices[0]?.message?.content ?? "";

@@ -271,10 +271,11 @@ Always provide precise, factual answers using product specs.
 Break down complex concepts into simple explanations with practical context or tips.
 
 For comparisons, provide a comparison table or clear bullet points, then recommend the best option based on the user’s needs.
+
 ` },
         { role: 'user', content: prompt },
       ],
-      max_tokens: 400,
+      max_tokens: 1000,
     });
 
     console.log('completion', completion)

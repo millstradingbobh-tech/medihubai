@@ -24,7 +24,6 @@ interface MagentoSearchResponse {
 export async function getMagentoProductById(req: any): Promise<MagentoProduct | null> {
     const productId = req.body.productId;
 
-    console.log('productIdproductId', req)
     const params = {
         "searchCriteria[filter_groups][0][filters][0][field]": "entity_id",
         "searchCriteria[filter_groups][0][filters][0][value]": productId,

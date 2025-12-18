@@ -8,7 +8,15 @@ const dataVersion = 'v' + SENITY_API_VERSION;
 
 export async function getProduct(productId: string) {
     const query = `
-        *[_type == "product" && _id match "*${productId}*"][0]
+
+
+       *[_type == "product" && _id match "*${productId}*"]{
+        ...,
+            "variants": *[
+                _type == "productVariant" &&
+                store.productId == ^.store.id
+            ]
+        }[0]
     `;
     const encodedQuery = encodeURIComponent(query);
 
@@ -19,7 +27,7 @@ export async function getProduct(productId: string) {
     });
 
     const data = await res.json();
-    
+    console.log(data)
     return data;
 }
 
