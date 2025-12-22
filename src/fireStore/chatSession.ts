@@ -12,7 +12,7 @@ export async function createChatSession(
 ) {
   const ref = db.collection("ProductAIChat").doc(sessionId);
 
-console.log("Project ID:", admin.app().options.projectId);
+// console.log("Project ID:", admin.app().options.projectId);
 
 
   await ref.set(
