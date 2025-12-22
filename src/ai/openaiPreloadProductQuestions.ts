@@ -2,6 +2,8 @@ import { OpenAI } from "openai";
 import { OPENAI_API_KEY, OPENAI_VERSION } from './access';
 import { getProductById } from "../sanity/getProductById";
 import { addMessage, buildOpenAIInput, getFirstMessage, getSession, setGenericRefund, setProductDetail, setProductPdf, getShippingPolicy } from "./chatSession";
+import { createChatSession, saveChatMessage } from "../fireStore/chatSession";
+import { db } from "../fireStore/init";
 
 export const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -22,6 +24,7 @@ export async function generateQuestions(req: any, res: any): Promise<string[]> {
   const body = req.body;
   const productResult = await getProductById(req);
   const product = productResult.result;
+
 // console.log(product)
   setProductDetail(product);
   // getShippingPolicy(product);
@@ -41,7 +44,7 @@ Ensure each question highlights the new features of the product.
 Return the questions as a JSON array of strings ONLY.
 
 Product Details:
-Title: ${product?.name}
+Title: ${product?.store?.title}
 Description: ${removeHtmlTags(shortDesc)}
 
 Please generate 3 questions.
@@ -52,7 +55,20 @@ Please generate 3 questions.
 
     addMessage(req.body.sessionId, "system", systemPrompt);
 
-    const messages: any = buildOpenAIInput(getSession(req.body.sessionId))
+
+    const vars = product?.variants;
+    const productSku = vars[0].store.sku;
+
+    // console.log(product?.title)
+
+
+    await createChatSession(req.body.sessionId, {
+      productSKU: productSku,
+      productName: product?.store?.title,
+      locationName: body.locationName
+    });
+
+    const messages: any = buildOpenAIInput(getSession(req.body.sessionId));
     
     const response = await openai.chat.completions.create({
       model: OPENAI_VERSION,
@@ -67,6 +83,8 @@ Please generate 3 questions.
     .replace(/^```\s*/, '')       // or opening ```
     .replace(/```$/, ''));
     console.log(questions)
+
+    await saveChatMessage(req.body.sessionId, "assistant", questions ?? '');
 
     if (Array.isArray(questions) && questions.every(q => typeof q === "string")) {
       return questions;

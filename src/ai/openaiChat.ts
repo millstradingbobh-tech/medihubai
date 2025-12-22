@@ -1,3 +1,4 @@
+import { saveChatMessage } from '../fireStore/chatSession';
 import { OPENAI_API_KEY, OPENAI_VERSION } from './access';
 import { addMessage, buildOpenAIInput, getFirstMessage, getSession, getShippingPolicy, shoudShowDelivery, updateSystemMessage } from "./chatSession";
 import { getShippingCost } from './getShippingCost';
@@ -15,6 +16,8 @@ export async function chat(request: any) {
 
     updateSystemMessage(sessionId, firstMessage);
     addMessage(sessionId, "user", message);
+
+    await saveChatMessage(sessionId, "user", message ?? '');
 
     // if (shoudShowDelivery(sessionId)) {
         
@@ -68,7 +71,9 @@ export async function chat(request: any) {
 
     addMessage(sessionId, "assistant", assistantText.content ?? '');
 
-    console.log(message, assistantText)
+    await saveChatMessage(sessionId, "assistant", assistantText.content ?? '');
+
+    // console.log(message, assistantText)
     return {
         sessionId,
         answer: assistantText.content

@@ -9,6 +9,8 @@ import { chat } from './src/ai/openaiChat';
 import { initProducts, searchProduct } from './src/ai/openaiSearchProducts';
 import { generateQuestions } from './src/ai/openaiPreloadProductQuestions';
 import { getMagentoProductById } from './src/magento/getProductDetail';
+import { getChatHistory } from './src/fireStore/getChatHistory';
+import { getDeviceChat } from './src/fireStore/getDeviceChat';
 
 const path = require('path');
 // const cors = require('cors');
@@ -49,6 +51,14 @@ app.get('/magentoproductai', (req, res) => {
 
 app.post("/api/magento/product", async (req, res) => {
     res.json(await getMagentoProductById(req));
+});
+
+app.get('/chat/history', async (req: any, res) => {
+  res.json(await getChatHistory(req.body.sessionId));
+});
+
+app.get('/chat/searchByLocation', async (req: any, res) => {
+  res.json(await getDeviceChat(req.body.locationName));
 });
 
 
