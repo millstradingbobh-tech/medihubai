@@ -1,43 +1,37 @@
 import admin from "firebase-admin";
-
 import fs from "fs";
 import path from "path";
-
-
 
 if (!admin.apps.length) {
   const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-  if (!credentialsPath) {
-    throw new Error("GOOGLE_APPLICATION_CREDENTIALS is not set");
-  }
+  if (credentialsPath) {
+    const resolvedPath = path.resolve(credentialsPath);
 
-  const resolvedPath = path.resolve(credentialsPath);
+    console.log("resolvedPath:", resolvedPath);
 
-  console.log("resolvedPath:", resolvedPath);
+    if (!fs.existsSync(resolvedPath)) {
+      throw new Error(`Service account file not found at ${resolvedPath}`);
+    }
 
-  if (!fs.existsSync(resolvedPath)) {
-    throw new Error(`Service account file not found at ${resolvedPath}`);
-  }
-
-  const serviceAccount = JSON.parse(
-    fs.readFileSync(resolvedPath, "utf8")
-  );
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: serviceAccount.project_id,
-  });
-} else {
+    const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, "utf8"));
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id,
+    });
+  } else {
+    // No GOOGLE_APPLICATION_CREDENTIALS: initialize with default creds (Cloud Run)
     admin.initializeApp();
   }
+}
 
-console.log("GOOGLE_APPLICATION_CREDENTIALS:", process.env.GOOGLE_APPLICATION_CREDENTIALS);
-console.log("FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
-console.log("Project ID:", admin.app().options.projectId);
-console.log(
-  "Service account:",
-  (admin.app().options.credential as any)?.clientEmail
-);
+// console.log("GOOGLE_APPLICATION_CREDENTIALS:", process.env.GOOGLE_APPLICATION_CREDENTIALS);
+// console.log("FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID);
+// console.log("Project ID:", admin.app().options.projectId);
+// console.log(
+//   "Service account:",
+//   (admin.app().options.credential as any)?.clientEmail
+// );
 
 export const db = admin.firestore();
 db.settings({ databaseId: "kioskaichat" });
