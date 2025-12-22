@@ -53,11 +53,11 @@ app.post("/api/magento/product", async (req, res) => {
     res.json(await getMagentoProductById(req));
 });
 
-app.get('/chat/history', async (req: any, res) => {
+app.post('/chat/history', async (req: any, res) => {
   res.json(await getChatHistory(req.body.sessionId));
 });
 
-app.get('/chat/searchByLocation', async (req: any, res) => {
+app.post('/chat/searchByLocation', async (req: any, res) => {
   res.json(await getDeviceChat(req.body.locationName));
 });
 
