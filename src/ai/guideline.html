@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Save Textareas to JSON</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width:90%;
+      margin: auto;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      padding: 10px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 15px;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+<button onclick="save()" style="position: fixed; top: 0; right: 0; z-index: 1;  height: 50px; padding: 10px; margin: 10px; ">Update</button>
+  <h2>Guidelines</h2>
+  <h4>First 3 questions</h4>
+  <textarea id="text1" placeholder="Textarea 1"></textarea>
+  <h4>Trigger postage api</h4>
+  <textarea id="text2" placeholder="Textarea 2" style="height: 300px;"></textarea>
+  <h4>FAQ guideline</h4>
+  <textarea id="text3" placeholder="Textarea 3" style="height: 1000px;"></textarea>
+
+
+  <div id="status" style="position: fixed; top: 0; left: 0; z-index: 1;  height: 50px; padding: 10px; margin: 10px; "></div>
+
+  <script>
+
+    function fromJson(text) {
+      // \\n → real line breaks
+      return text?.replace(/\\n/g, "\n") ?? "";
+    }
+
+    function toJson(text) {
+      // real line breaks → \\n
+      return text.replace(/\n/g, "\\n");
+    }
+
+    async function save() {
+      const payload = {
+        text1: (document.getElementById("text1").value),
+        text2: (document.getElementById("text2").value),
+        text3: (document.getElementById("text3").value)
+      };
+
+      console.log(payload)
+
+      const saveres = await fetch("/chat/saveguideline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('testhere')
+
+      if (saveres.ok) {
+        document.getElementById("status").textContent = "Saved successfully ✔";
+      } else {
+        document.getElementById("status").textContent = "Failed to save ❌";
+      }
+    }
+
+    async function preload() {
+      try {
+        const res = await fetch("/chat/guideline");
+        const data = await res.json();
+
+        document.getElementById("text1").value = fromJson(data.text1) || "";
+        document.getElementById("text2").value = fromJson(data.text2) || "";
+        document.getElementById("text3").value = fromJson(data.text3) || "";
+      } catch (err) {
+        console.error("Failed to preload JSON", err);
+      }
+    }
+
+    preload();
+  </script>
+
+</body>
+</html>

@@ -1,9 +1,10 @@
 import { OpenAI } from "openai";
 import { OPENAI_API_KEY, OPENAI_VERSION } from './access';
 import { getProductById } from "../sanity/getProductById";
-import { addMessage, buildOpenAIInput, getFirstMessage, getSession, setGenericRefund, setProductDetail, setProductPdf, getShippingPolicy } from "./chatSession";
+import { addMessage, buildOpenAIInput, getSession, setGenericRefund, setProductDetail, setProductPdf, getShippingPolicy } from "./chatSession";
 import { createChatSession, saveChatMessage } from "../fireStore/chatSession";
 import { db } from "../fireStore/init";
+import { readGuideline } from "./guideline";
 
 export const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -19,6 +20,11 @@ function removeHtmlTags(str: string) {
   return str.replace(/<\/?[^>]+(>|$)/g, "");
 }
 
+function fromJson(text: any) {
+      // \\n → real line breaks
+      return text?.replace(/\\n/g, "\n") ?? "";
+    }
+
 export async function generateQuestions(req: any, res: any): Promise<string[]> {
 
   const body = req.body;
@@ -32,22 +38,16 @@ export async function generateQuestions(req: any, res: any): Promise<string[]> {
   // await setProductPdf(product);
 
   const shortDesc = product?.store.descriptionHtml;
+  const content = await readGuideline();
+  const data = JSON.parse(content);
 
   const systemPrompt = `
-You are a customer support assistant for an online store.
-
-Given a product, generate 3 concise and relevant customer questions users frequently ask about it.
-Focus on product features, usage, and common concerns.
-Ensure each question is fewer than 15 words.
-Ensure each question highlights the key standout features of the product.
-Ensure each question highlights the new features of the product.
-Return the questions as a JSON array of strings ONLY.
+${fromJson(data.text1)}
 
 Product Details:
 Title: ${product?.store?.title}
 Description: ${removeHtmlTags(shortDesc)}
 
-Please generate 3 questions.
 `;
 
 

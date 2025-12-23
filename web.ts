@@ -11,6 +11,9 @@ import { generateQuestions } from './src/ai/openaiPreloadProductQuestions';
 import { getMagentoProductById } from './src/magento/getProductDetail';
 import { getChatHistory } from './src/fireStore/getChatHistory';
 import { getDeviceChat } from './src/fireStore/getDeviceChat';
+import { readGuideline, saveGuideline } from './src/ai/guideline';
+import fs from "fs/promises";
+
 
 const path = require('path');
 // const cors = require('cors');
@@ -45,8 +48,12 @@ app.post("/api/openai/generateProductQuestions", async (req, res) => {
     res.send(await generateQuestions(req, res));
 });
 
-app.get('/magentoproductai', (req, res) => {
+app.get('/product-ai-playground', (req, res) => {
   res.sendFile(path.join(__dirname, './src/ai/index.html'));
+});
+
+app.get('/guideline', (req, res) => {
+  res.sendFile(path.join(__dirname, './src/ai/guideline.html'));
 });
 
 app.post("/api/magento/product", async (req, res) => {
@@ -59,6 +66,26 @@ app.post('/chat/history', async (req: any, res) => {
 
 app.post('/chat/searchByLocation', async (req: any, res) => {
   res.json(await getDeviceChat(req.body.locationName));
+});
+
+app.post('/chat/saveguideline', async (req, res) => {
+  try {
+    const result = await saveGuideline(req, res);
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+app.get("/chat/guideline", async (_req, res) => {
+  try {
+    const content = await readGuideline();
+    res.json(JSON.parse(content));
+  } catch (err) {
+    res.status(500).json({ error: "Failed to load guideline" });
+  }
 });
 
 

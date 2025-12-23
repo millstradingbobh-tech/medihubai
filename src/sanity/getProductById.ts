@@ -10,7 +10,7 @@ export async function getProduct(productId: string) {
     const query = `
 
 
-       *[_type == "product" && _id match "*${productId}*"]{
+       *[_type == "product" && _id match "${productId}"]{
         ...,
             "variants": *[
                 _type == "productVariant" &&

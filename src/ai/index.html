@@ -63,7 +63,7 @@
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ productId: productId, sessionId: randomString + '_' + productId }),
+          body: JSON.stringify({ productId: productId, sessionId: randomString + '_' + productId, locationName: 'Mills - Seven Hills' }),
         });
 
         if (!response.ok) {
@@ -100,22 +100,31 @@
       return String(randomNum);
     }
 
+    function formatText(text) {
+      return text
+        // **bold** → <strong>bold</strong>
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        // \n → <br>
+        .replace(/\n/g, "<br>");
+    }
+
     async function sendChat(message) {
 
       const productChat = document.getElementById('productChat');
       const loading = document.getElementById('loading');
       
-
       loading.innerHTML = `<h5>Loading...</h5>`;
-          const productId = document.getElementById('productId').value.trim();
+      const productId = document.getElementById('productId').value.trim();
     
       try {
+
+          chatHistory += `<div style="text-align:right;">${message}</div><hr />`;
           const response = await fetch('/api/openai/chat', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ productId: productId, message: message, sessionId: randomString + '_' + productId }),
+            body: JSON.stringify({ productId: productId, message: message, sessionId: randomString + '_' + productId, locationName: 'Mills - Seven Hills' }),
           });
 
           if (!response.ok) {
@@ -123,7 +132,7 @@
           }
 
           const data = await response.json();
-          chatHistory += `<div>${data?.answer}</div>`;
+          chatHistory += `<div>${formatText(data?.answer)}</div><hr />`;
           productChat.innerHTML = `
             <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
               ${chatHistory}
