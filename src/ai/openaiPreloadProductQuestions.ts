@@ -5,6 +5,7 @@ import { addMessage, buildOpenAIInput, getSession, setGenericRefund, setProductD
 import { createChatSession, saveChatMessage } from "../fireStore/chatSession";
 import { db } from "../fireStore/init";
 import { readGuideline } from "./guideline";
+import { getProductBySku } from "../sanity/getProductBySku";
 
 export const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -26,9 +27,24 @@ function fromJson(text: any) {
     }
 
 export async function generateQuestions(req: any, res: any): Promise<string[]> {
+  let isSku = false;
+  if (req.body.productSku && req.body.productId === '') {
+    isSku = true;
+  }
+
+  let productResult;
+  if (isSku) {
+    const skuResult = await getProductBySku(req);
+    const gidList = skuResult.result.product.store.gid.split('/');
+    console.log(gidList[gidList.length - 1]);
+    productResult = await getProductById({body: {
+      productId: gidList[gidList.length - 1]
+    }});
+  } else {
+    productResult = await getProductById(req);
+  }
 
   const body = req.body;
-  const productResult = await getProductById(req);
   const product = productResult.result;
 
 // console.log(product)
@@ -58,9 +74,6 @@ Description: ${removeHtmlTags(shortDesc)}
 
     const vars = product?.variants;
     const productSku = vars[0].store.sku;
-
-    // console.log(product?.title)
-
 
     await createChatSession(req.body.sessionId, {
       productSKU: productSku,

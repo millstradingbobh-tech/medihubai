@@ -10,7 +10,7 @@ function fromJson(text: any) {
       return text?.replace(/\\n/g, "\n") ?? "";
     }
 export async function chat(request: any) {
-    const { sessionId, message, productId } = request.body;
+    const { sessionId, message} = request.body;
 
     if (!sessionId || !message) {
         return request.status(400).json({ error: "Missing sessionId or message" });

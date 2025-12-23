@@ -12,7 +12,7 @@
   <div class="container">
     <!-- Product ID input -->
     <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-      <input class="mdl-textfield__input" type="text" id="productId" placeholder="Product ID" />
+      <input class="mdl-textfield__input" type="text" id="productId" placeholder="Product ID or SKU" />
     </div>
 
     <!-- Send button -->
@@ -51,11 +51,13 @@
 
   <script>
     let randomString = getRandomSixDigitString();
+    let skuOrId = '';
     let chatHistory = '';
     async function findProduct() {
       const productPreQuestions = document.getElementById('productPreQuestions');
       productPreQuestions.innerHTML = `<h5>Loading...</h5>`;
-      const productId = document.getElementById('productId').value.trim();
+      skuOrId = document.getElementById('productId').value.trim();
+      const regexOnlyDigits = /^\d+$/;
 
       try {
         const response = await fetch('/api/openai/generateProductQuestions', {
@@ -63,7 +65,7 @@
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ productId: productId, sessionId: randomString + '_' + productId, locationName: 'Mills - Seven Hills' }),
+          body: JSON.stringify({ productId: regexOnlyDigits.test(skuOrId) ? skuOrId : '', sessionId: randomString + '_' + skuOrId, locationName: 'Mills - Seven Hills', productSku: regexOnlyDigits.test(skuOrId) ? '' : skuOrId }),
         });
 
         if (!response.ok) {
@@ -114,7 +116,6 @@
       const loading = document.getElementById('loading');
       
       loading.innerHTML = `<h5>Loading...</h5>`;
-      const productId = document.getElementById('productId').value.trim();
     
       try {
 
@@ -124,7 +125,7 @@
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ productId: productId, message: message, sessionId: randomString + '_' + productId, locationName: 'Mills - Seven Hills' }),
+            body: JSON.stringify({ productId: skuOrId, message: message, sessionId: randomString + '_' + skuOrId, locationName: 'Mills - Seven Hills' }),
           });
 
           if (!response.ok) {

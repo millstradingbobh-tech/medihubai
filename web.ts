@@ -13,6 +13,7 @@ import { getChatHistory } from './src/fireStore/getChatHistory';
 import { getDeviceChat } from './src/fireStore/getDeviceChat';
 import { readGuideline, saveGuideline } from './src/ai/guideline';
 import fs from "fs/promises";
+import { getProductBySku } from './src/sanity/getProductBySku';
 
 
 const path = require('path');
@@ -32,6 +33,11 @@ app.get('/', (req, res) => {
 
 app.post("/api/sanity/getProductById", async (req, res) => {
     const product = await getProductById(req);
+    res.json({ product });
+});
+
+app.post("/api/sanity/getProductBySku", async (req, res) => {
+    const product = await getProductBySku(req);
     res.json({ product });
 });
 
