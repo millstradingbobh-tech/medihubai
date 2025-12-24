@@ -6,4 +6,4 @@ dist/
 .env
 .env
 service-account.json
-guidelineStore.json
+src/ai/guidelineStore.json
