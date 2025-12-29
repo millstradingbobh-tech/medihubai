@@ -3,97 +3,391 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css" />
+  <title>Product Chat with Voice Input</title>
+  <style>
+    /* Reset */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
 
-  <title>Product chat</title>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+        Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .control {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    border: 1px solid #60a5fa;
+  }
+  .left {
+    flex: 1; /* takes all remaining space */
+    padding: 10px;
+  }
+  .right {
+    width: 300px; /* fixed width */
+    padding: 10px;
+    text-align: right;
+  }
+
+    .container {
+      background: #1e293b;
+      border-radius: 16px;
+      box-shadow: 0 12px 32px rgba(14, 32, 57, 0.8);
+      padding: 24px 32px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    h1 {
+      margin: 0 0 12px 0;
+      font-weight: 700;
+      font-size: 2rem;
+      color: #60a5fa;
+      user-select: none;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #94a3b8;
+      user-select: none;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      min-width: 0; /* important for flexbox */
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      background: #334155;
+      color: #f1f5f9;
+      outline-offset: 2px;
+      outline-color: #60a5fa;
+      transition: background-color 0.25s ease;
+      white-space: normal;
+    }
+
+    input[type="text"]:focus {
+      background: #3b82f6;
+      color: white;
+      outline: none;
+      box-shadow: 0 0 6px #3b82f6;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      transition:
+        background-color 0.3s ease,
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+      box-shadow: 0 6px 12px rgba(37, 99, 235, 0.6);
+    }
+
+    button:hover:not(:disabled) {
+      background: #1d4ed8;
+      box-shadow: 0 10px 20px rgba(29, 78, 216, 0.8);
+      transform: translateY(-2px);
+    }
+
+    button:active:not(:disabled) {
+      background: #1e40af;
+      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.7);
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .message-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    #message {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    #sendMsgBtn {
+      flex-shrink: 0;
+      min-width: 110px;
+    }
+
+    #chooseProductBtn {
+      margin-top: 12px;
+      align-self: flex-start;
+    }
+
+    #productChat {
+      background: #334155;
+      border-radius: 12px;
+      padding: 16px 20px;
+      max-height: 280px;
+      overflow-y: auto;
+      font-size: 1rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      color: #e0e7ff;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      user-select: text;
+    }
+
+    #productPreQuestions {
+      word-break: break-word;
+      font-size: 1rem;
+    }
+
+    #productPreQuestions a {
+      color: #60a5fa;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    #productPreQuestions a:hover,
+    #productPreQuestions a:focus {
+      color: #93c5fd;
+      outline: none;
+    }
+
+    #loading {
+      font-size: 1rem;
+      font-style: italic;
+      color: #94a3b8;
+      min-height: 1.4em;
+      user-select: none;
+    }
+
+    #voiceRecordContainer {
+      text-align: center;
+      margin-top: 20px;
+      user-select: none;
+    }
+
+    #recordBtn {
+      padding: 0;
+      background: #2563eb;
+      color: white;
+      border: none;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      font-size: 1rem;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 8px 15px rgba(37, 99, 235, 0.6);
+      transition:
+        background-color 0.3s ease,
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      margin: 0 auto;
+      display: block;
+    }
+
+    #recordBtn.recording {
+      background: #1d4ed8;
+      transform: scale(0.9);
+      box-shadow: 0 4px 8px rgba(29, 78, 216, 0.8);
+    }
+
+    #recordBtn:active:not(.recording) {
+      background: #1e40af;
+      transform: scale(0.92);
+      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.7);
+    }
+
+    #timer {
+      margin-top: 12px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #60a5fa;
+      font-family: 'Segoe UI Mono', Consolas, monospace;
+      min-height: 1.8em;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 8px #3b82f6;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    @media (max-width: 540px) {
+      .container {
+        padding: 20px 16px;
+      }
+
+      .message-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      #sendMsgBtn {
+        width: 100%;
+        min-width: unset;
+        margin-top: 8px;
+      }
+
+      #chooseProductBtn {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
+  <main class="container" role="main" aria-label="Product chat with voice input">
+    <h1>Product Chat 🤖</h1>
 
-  <div class="container">
-    <!-- Product ID input -->
-    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-      <input class="mdl-textfield__input" type="text" id="productId" placeholder="Product ID or SKU" />
+    <div class="input-group">
+      <label for="productId">Product ID or SKU</label>
+      <input
+        type="text"
+        id="productId"
+        placeholder="Enter product ID or SKU"
+        autocomplete="off"
+        aria-describedby="productHelp"
+      />
+      <button type="button" id="chooseProductBtn" aria-label="Choose product">Choose Product</button>
     </div>
 
-    <!-- Send button -->
-    <button 
-      class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored"
-      onclick="findProduct()"
-    >
-      Choose Product
-    </button>
-</div>
+    <div id="productPreQuestions" aria-live="polite" style="margin-top: 8px;"></div>
 
-<div id="productPreQuestions" style="margin-top: 20px; width: 100%;"></div>
+    <hr style="border-color: #475569; margin: 20px 0;" />
 
-<hr />
-<div class="container">
-    <!-- Message input -->
-    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-      <input class="mdl-textfield__input" type="text" id="message" placeholder="Type your question..." />
+    <div id="productChat" aria-live="polite" aria-atomic="false" tabindex="0"></div>
+    <div id="loading" aria-live="assertive" aria-atomic="true"></div>
+
+    <div class="control">
+      <div class="left"><div class="message-row">
+      <div class="input-group" style="flex: 1;">
+        <label for="message">Your Question</label>
+        <input
+          type="text"
+          id="message"
+          placeholder="Type your question..."
+          autocomplete="off"
+          aria-label="Type your question"
+        />
+      </div>
+      <button type="button" id="sendMsgBtn" aria-label="Send message">Send</button>
+    </div></div>
+      <div class="right"><div id="voiceRecordContainer" aria-label="Voice recording controls">
+      <button
+        id="recordBtn"
+        type="button"
+        aria-pressed="false"
+        aria-label="Hold to speak, release to stop and send"
+      >
+        🎤 <br />Hold to Speak
+      </button>
+      <div id="timer" aria-live="off" aria-atomic="true">00:00.00</div>
+    </div></div>
     </div>
 
     
-    <!-- Send button -->
-    <button 
-      class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect mdl-button--colored"
-      onclick="sendCustomChat()"
-    >
-      Send Message
-    </button>
 
-  </div>
+    
 
-
-<div id="productChat" style="margin-top: 20px; width: 100%;"></div>
-<div id="loading" style="margin-top: 20px; width: 100%;"></div>
-    <hr />
+    
+  </main>
 
   <script>
+    // Your existing chat logic, slightly updated for new button IDs
+
     let randomString = getRandomSixDigitString();
-    let skuOrId = '';
-    let chatHistory = '';
+    let skuOrId = "";
+    let chatHistory = "";
+
+    const chooseProductBtn = document.getElementById("chooseProductBtn");
+    const sendMsgBtn = document.getElementById("sendMsgBtn");
+    const productIdInput = document.getElementById("productId");
+    const messageInput = document.getElementById("message");
+
+    const productPreQuestions = document.getElementById("productPreQuestions");
+    const productChat = document.getElementById("productChat");
+    const loading = document.getElementById("loading");
+
+    chooseProductBtn.onclick = findProduct;
+    sendMsgBtn.onclick = sendCustomChat;
+
     async function findProduct() {
-      const productPreQuestions = document.getElementById('productPreQuestions');
       productPreQuestions.innerHTML = `<h5>Loading...</h5>`;
-      skuOrId = document.getElementById('productId').value.trim();
+      skuOrId = productIdInput.value.trim();
       const regexOnlyDigits = /^\d+$/;
 
       try {
-        const response = await fetch('/api/openai/generateProductQuestions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ productId: regexOnlyDigits.test(skuOrId) ? skuOrId : '', sessionId: randomString + '_' + skuOrId, locationName: 'Mills - Seven Hills', productSku: regexOnlyDigits.test(skuOrId) ? '' : skuOrId }),
+        const response = await fetch("/api/openai/generateProductQuestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: regexOnlyDigits.test(skuOrId) ? skuOrId : "",
+            sessionId: randomString + "_" + skuOrId,
+            locationName: "Mills - Seven Hills",
+            productSku: regexOnlyDigits.test(skuOrId) ? "" : skuOrId,
+          }),
         });
 
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
+        if (!response.ok) throw new Error("Network response was not ok");
 
         const data = await response.json();
+
         productPreQuestions.innerHTML = `
           <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
             <h5>Pre-message for this product:</h5>
-            <p><a href='#' onclick="preload(event, '${data[0]}')">${data[0]}</a></p>
-            <p><a href='#' onclick="preload(event, '${data[1]}')">${data[1]}</a></p>
-            <p><a href='#' onclick="preload(event, '${data[2]}')">${data[2]}</a></p>
+            <p><a href="#" onclick="preload(event, '${data[0]}')">${data[0]}</a></p>
+            <p><a href="#" onclick="preload(event, '${data[1]}')">${data[1]}</a></p>
+            <p><a href="#" onclick="preload(event, '${data[2]}')">${data[2]}</a></p>
           </div>
         `;
       } catch (error) {
-        productPreQuestions.textContent = 'Error: ' + error.message;
+        productPreQuestions.textContent = "Error: " + error.message;
       }
     }
 
     async function preload(event, preload) {
-      event.preventDefault(); 
-      console.log("Value passed:", preload);
+      event.preventDefault();
       sendChat(preload);
     }
 
     async function sendCustomChat() {
-      const customMessage = document.getElementById('message').value.trim();
+      const customMessage = messageInput.value.trim();
       sendChat(customMessage);
     }
 
@@ -104,49 +398,151 @@
 
     function formatText(text) {
       return text
-        // **bold** → <strong>bold</strong>
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-        // \n → <br>
-        .replace(/\n/g, "<br>");
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // bold **text**
+        .replace(/\n/g, "<br>"); // newline
     }
 
     async function sendChat(message) {
-
-      const productChat = document.getElementById('productChat');
-      const loading = document.getElementById('loading');
-      
+      if (!message) return;
       loading.innerHTML = `<h5>Loading...</h5>`;
-    
+
       try {
+        chatHistory += `<div style="text-align:right; margin-bottom: 8px;">${message}</div><hr />`;
 
-          chatHistory += `<div style="text-align:right;">${message}</div><hr />`;
-          const response = await fetch('/api/openai/chat', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ productId: skuOrId, message: message, sessionId: randomString + '_' + skuOrId, locationName: 'Mills - Seven Hills' }),
-          });
+        const response = await fetch("/api/openai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: skuOrId,
+            message: message,
+            sessionId: randomString + "_" + skuOrId,
+            locationName: "Mills - Seven Hills",
+          }),
+        });
 
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
+        if (!response.ok) throw new Error("Network response was not ok");
 
-          const data = await response.json();
-          chatHistory += `<div>${formatText(data?.answer)}</div><hr />`;
-          productChat.innerHTML = `
-            <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
-              ${chatHistory}
-            </div>
-          `;
+        const data = await response.json();
+        chatHistory += `<div style="text-align:left; margin-bottom: 8px;">${formatText(data?.answer)}</div><hr />`;
+        productChat.innerHTML = `<div style="padding: 8px 0;">${chatHistory}</div>`;
+        productChat.scrollTop = productChat.scrollHeight;
 
-          loading.innerHTML = ``;
-        } catch (error) {
-          productChat.textContent = 'Error: ' + error.message;
-        }
+        loading.innerHTML = "";
+        messageInput.value = "";
+      } catch (error) {
+        productChat.textContent = "Error: " + error.message;
+        loading.innerHTML = "";
       }
-  </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    }
 
+    // --- Voice recording code ---
+
+    let recorder;
+    let audioChunks = [];
+    let stream;
+    let timerInterval;
+    let startTime;
+
+    const recordBtn = document.getElementById("recordBtn");
+    const timer = document.getElementById("timer");
+    const result = document.getElementById("productChat");
+
+    recordBtn.addEventListener("mousedown", startRecording);
+    recordBtn.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      startRecording();
+    }, { passive: false });
+
+    recordBtn.addEventListener("mouseup", stopRecording);
+    recordBtn.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      stopRecording();
+    });
+
+    function updateTimer() {
+      const elapsed = Date.now() - startTime;
+      const totalSeconds = Math.floor(elapsed / 1000);
+      const mins = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const secs = String(totalSeconds % 60).padStart(2, "0");
+      const ms = String(Math.floor((elapsed % 1000) / 10)).padStart(2, "0");
+      timer.textContent = `${mins}:${secs}.${ms}`;
+    }
+
+    async function startRecording() {
+      if (recorder && recorder.state === "recording") return;
+
+      // Clear any previous transcription results
+      result.innerHTML = "";
+      timer.textContent = "00:00.00";
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        result.textContent = "Microphone access denied or not available.";
+        return;
+      }
+
+      recorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        clearInterval(timerInterval);
+
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", blob);
+
+        result.textContent = "Transcribing…";
+
+        try {
+          const res = await fetch("/chat/voicetotext", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await res.json();
+
+          // Insert transcription as a new message, send chat automatically
+          const transcribedText = data.text?.trim() || "";
+          if (transcribedText) {
+            messageInput.value = transcribedText;
+            sendCustomChat();
+          } else {
+            result.textContent = "No transcription detected.";
+          }
+        } catch (error) {
+          result.textContent = "Error during transcription: " + error.message;
+        } finally {
+          timer.textContent = "00:00.00";
+
+          if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+            stream = null;
+          }
+        }
+      };
+
+      recorder.start();
+
+      recordBtn.classList.add("recording");
+      recordBtn.textContent = "Recording…";
+      recordBtn.setAttribute("aria-pressed", "true");
+
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 50);
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        recordBtn.classList.remove("recording");
+        recordBtn.textContent = "🎤 Hold to Speak";
+        recordBtn.setAttribute("aria-pressed", "false");
+      }
+    }
+  </script>
 </body>
 </html>
