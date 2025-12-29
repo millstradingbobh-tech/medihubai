@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voice to Text</title>
+  <style>
+    /* Reset some basics */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 0 1rem;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .card {
+      background: #020617;
+      padding: 2rem;
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 320px;
+      box-shadow: 0 20px 40px rgba(0,0,0,.5);
+      text-align: center;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    p {
+      font-size: 1rem;
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      width: 210px;
+      height: 210px;
+      border-radius: 50%;
+      font-size: 1.25rem;
+      cursor: pointer;
+      margin: 0 auto;
+      display: block;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+      line-height: 210px; /* vertically center text */
+      text-align: center;
+
+      /* pressed style improvements */
+      box-shadow: 0 8px 15px rgba(37, 99, 235, 0.6);
+      transition: 
+        background-color 0.3s ease, 
+        transform 0.15s ease, 
+        box-shadow 0.15s ease;
+    }
+
+    button.recording {
+      background: #1d4ed8; /* Slightly darker blue */
+      transform: scale(0.9);
+      box-shadow: 0 4px 8px rgba(29, 78, 216, 0.8);
+    }
+
+    button:active:not(.recording) {
+      background: #1e40af;
+      transform: scale(0.92);
+      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.7);
+    }
+
+    button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .timer {
+      margin-top: 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #60a5fa;
+      min-height: 1.5em;
+      user-select: none;
+      font-family: monospace;
+    }
+
+    .output {
+      margin-top: 1.5rem;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      min-height: 4rem;
+      text-align: left;
+      font-size: 1rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 100%;
+      overflow-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🎤 Voice to Text</h2>
+    <p>Press and hold the button to record, release to stop and send</p>
+
+    <button id="recordBtn" type="button">Hold to Speak</button>
+    <div class="timer" id="timer">00:00.00</div>
+
+    <div class="output" id="result">Waiting…</div>
+  </div>
+
+  <script>
+    let recorder;
+    let audioChunks = [];
+    let stream;
+    let timerInterval;
+    let startTime;
+
+    const btn = document.getElementById("recordBtn");
+    const result = document.getElementById("result");
+    const timer = document.getElementById("timer");
+
+    btn.addEventListener("mousedown", startRecording);
+    btn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); }, { passive: false });
+
+    btn.addEventListener("mouseup", stopRecording);
+    btn.addEventListener("touchend", (e) => { e.preventDefault(); stopRecording(); });
+
+    function updateTimer() {
+      const elapsed = Date.now() - startTime;
+      const totalSeconds = Math.floor(elapsed / 1000);
+      const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+      const secs = String(totalSeconds % 60).padStart(2, '0');
+      const ms = String(Math.floor((elapsed % 1000) / 10)).padStart(2, '0');
+      timer.textContent = `${mins}:${secs}.${ms}`;
+    }
+
+    async function startRecording() {
+      if (recorder && recorder.state === "recording") return;
+
+      result.textContent = "";
+      timer.textContent = "00:00.00";
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        result.textContent = "Microphone access denied or not available.";
+        return;
+      }
+
+      recorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        // Stop timer immediately on release
+        clearInterval(timerInterval);
+
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", blob);
+
+        result.textContent = "Transcribing…";
+
+        try {
+          const res = await fetch("/chat/voicetotext", {
+            method: "POST",
+            body: formData
+          });
+          const data = await res.json();
+          result.textContent = data.text || "No transcription";
+        } catch (error) {
+          result.textContent = "Error during transcription: " + error.message;
+        } finally {
+          // Reset timer only after response
+          timer.textContent = "00:00.00";
+
+          if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+          }
+        }
+      };
+
+      recorder.start();
+
+      btn.classList.add("recording");
+      btn.textContent = "Recording…";
+
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 50);
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        btn.classList.remove("recording");
+        btn.textContent = "Hold to Speak";
+      }
+    }
+  </script>
+</body>
+</html>

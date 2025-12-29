@@ -14,7 +14,11 @@ import { getDeviceChat } from './src/fireStore/getDeviceChat';
 import { readGuideline, saveGuideline } from './src/ai/guideline';
 import fs from "fs/promises";
 import { getProductBySku } from './src/sanity/getProductBySku';
+import multer from "multer";
+import cors from "cors";
+import { voiceToText } from './src/ai/voiceToText';
 
+const upload = multer({ dest: "uploads/", limits: { fileSize: 10 * 1024 * 1024 } });
 
 const path = require('path');
 // const cors = require('cors');
@@ -23,12 +27,24 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 app.use(apiInterceptor());
-// app.use(cors());
+app.use(cors());
 // initProducts();
 
 app.get('/', (req, res) => {
     console.log(process.env)
     res.send('hello, world');
+});
+
+app.get('/product-ai-playground', (req, res) => {
+  res.sendFile(path.join(__dirname, './src/ai/index.html'));
+});
+
+app.get('/guideline', (req, res) => {
+  res.sendFile(path.join(__dirname, './src/ai/guideline.html'));
+});
+
+app.get('/voicetotext', (req, res) => {
+  res.sendFile(path.join(__dirname, './src/ai/voicetotext.html'));
 });
 
 app.post("/api/sanity/getProductById", async (req, res) => {
@@ -52,14 +68,6 @@ app.get("/api/openai/searchProduct", async (req, res) => {
 
 app.post("/api/openai/generateProductQuestions", async (req, res) => {
     res.send(await generateQuestions(req, res));
-});
-
-app.get('/product-ai-playground', (req, res) => {
-  res.sendFile(path.join(__dirname, './src/ai/index.html'));
-});
-
-app.get('/guideline', (req, res) => {
-  res.sendFile(path.join(__dirname, './src/ai/guideline.html'));
 });
 
 app.post("/api/magento/product", async (req, res) => {
@@ -92,6 +100,15 @@ app.get("/chat/guideline", async (_req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to load guideline" });
   }
+});
+
+app.post("/chat/voicetotext", upload.single("audio"), async (req, res) => {
+    try {
+        res.json(await voiceToText(req, res));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Voice transcription failed" });
+    }
 });
 
 
