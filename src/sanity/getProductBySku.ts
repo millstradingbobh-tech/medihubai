@@ -8,9 +8,9 @@ const dataVersion = 'v' + SENITY_API_VERSION;
 
 export async function getProductSku(productSku: string) {
     const query = `
-*[_type == "productVariant" && store.sku == "${productSku}"][0]{
+*[_type == "productVariant" && store.sku == "${productSku}" && store.status == "active" && !store.isDeleted][0]{
   ...,
-  "product": *[_type == "product" && store.id == ^.store.pid][0]{
+  "product": *[_type == "product" && store.id == ^.store.productId && !store.isDeleted][0]{
     ...,
   }
 }

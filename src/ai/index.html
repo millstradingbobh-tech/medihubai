@@ -3,644 +3,461 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Product Chat with Voice Input</title>
+
+  <title>Product chat</title>
   <style>
-    /* Reset */
-    *, *::before, *::after {
+    :root {
+      --primary: #2563eb;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #0f172a;
+      --muted: #64748b;
+      --radius: 14px;
+    }
+
+    * {
       box-sizing: border-box;
     }
 
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-        Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
       margin: 0;
-      padding: 1rem;
+      background: var(--bg);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
       display: flex;
       justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+      padding: 24px;
     }
 
-    .control {
+    .app {
+      width: 100%;
+      max-width: 900px;
       display: flex;
-      align-items: center;
-      padding: 10px 20px;
-      border: 1px solid #60a5fa;
+      flex-direction: column;
+      gap: 20px;
     }
-    .left {
-      flex: 1; /* takes all remaining space */
-      padding: 10px;
+
+    h5 {
+      margin: 0 0 10px;
     }
-    .right {
-      width: 300px; /* fixed width */
-      padding: 10px;
-      text-align: right;
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 10px 0;
+      clear: both;
     }
 
     .container {
-      background: #1e293b;
-      border-radius: 16px;
-      box-shadow: 0 12px 32px rgba(14, 32, 57, 0.8);
-      padding: 24px 32px;
-      width: 100%;
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
       display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-
-    h1 {
-      margin: 0 0 12px 0;
-      font-weight: 700;
-      font-size: 2rem;
-      color: #60a5fa;
-      user-select: none;
-    }
-
-    label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      color: #94a3b8;
-      user-select: none;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
     }
 
     input[type="text"] {
-      width: 100%;
-      min-width: 0; /* important for flexbox */
-      padding: 12px 16px;
-      border-radius: 8px;
-      border: none;
-      font-size: 1rem;
-      background: #334155;
-      color: #f1f5f9;
-      outline-offset: 2px;
-      outline-color: #60a5fa;
-      transition: background-color 0.25s ease;
-      white-space: normal;
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 15px;
     }
 
     input[type="text"]:focus {
-      background: #3b82f6;
-      color: white;
       outline: none;
-      box-shadow: 0 0 6px #3b82f6;
+      border-color: var(--primary);
     }
 
     button {
-      background: #2563eb;
-      color: white;
+      padding: 12px 16px;
+      border-radius: 10px;
       border: none;
-      border-radius: 8px;
-      padding: 12px 20px;
-      font-size: 1rem;
+      background: var(--primary);
+      color: #fff;
       font-weight: 600;
       cursor: pointer;
-      user-select: none;
-      transition:
-        background-color 0.3s ease,
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
-      box-shadow: 0 6px 12px rgba(37, 99, 235, 0.6);
+      transition: transform 0.05s ease, opacity 0.15s ease;
     }
 
-    button:hover:not(:disabled) {
-      background: #1d4ed8;
-      box-shadow: 0 10px 20px rgba(29, 78, 216, 0.8);
-      transform: translateY(-2px);
+    button:hover {
+      opacity: 0.9;
     }
 
-    button:active:not(:disabled) {
-      background: #1e40af;
-      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.7);
-      transform: translateY(1px);
+    button:active {
+      transform: scale(0.97);
     }
 
-    button:disabled {
-      background: #6b7280;
-      cursor: not-allowed;
-      box-shadow: none;
-      transform: none;
-    }
-
-    .input-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .message-row {
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
-    }
-
-    #message {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    #sendMsgBtn {
-      flex-shrink: 0;
-      min-width: 110px;
-    }
-
-    #chooseProductBtn {
-      margin-top: 12px;
-      align-self: flex-start;
-    }
-
-    #productChat {
-      background: #334155;
-      border-radius: 12px;
-      padding: 16px 20px;
-      overflow-y: auto;
-      font-size: 1rem;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      color: #e0e7ff;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      user-select: text;
-      max-height: 400px;
-    }
-
-    #productPreQuestions {
-      word-break: break-word;
-      font-size: 1rem;
+    #productPreQuestions > div {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
     }
 
     #productPreQuestions a {
-      color: #60a5fa;
-      cursor: pointer;
+      display: block;
+      padding: 8px 0;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    #productPreQuestions a:hover {
       text-decoration: underline;
     }
 
-    #productPreQuestions a:hover,
-    #productPreQuestions a:focus {
-      color: #93c5fd;
-      outline: none;
+    #productChat .mdl-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
     }
 
-    #loading {
-      font-size: 1rem;
-      font-style: italic;
-      color: #94a3b8;
-      min-height: 1.4em;
-      user-select: none;
+    #productChat div[style*="text-align:right"] {
+      background: #e0e7ff;
+      padding: 10px 14px;
+      border-radius: 12px 12px 4px 12px;
+      margin-left: auto;
+      margin-bottom: 10px;
+      font-weight: 500;
+      float:right;
     }
 
-    #voiceRecordContainer {
-      text-align: center;
-      margin-top: 20px;
-      user-select: none;
+    #productChat div:not([style*="text-align:right"]) {
+      background: #f1f5f9;
+      padding: 10px 14px;
+      border-radius: 12px 12px 12px 4px;
+      margin-bottom: 10px;
     }
 
-    #recordBtn {
-      padding: 0;
-      background: #2563eb;
-      color: white;
-      border: none;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      font-size: 1rem;
-      cursor: pointer;
-      text-align: center;
-      box-shadow: 0 8px 15px rgba(37, 99, 235, 0.6);
-      transition:
-        background-color 0.3s ease,
-        transform 0.15s ease,
-        box-shadow 0.15s ease;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: manipulation;
-      margin: 0 auto;
-      display: block;
+    #loading h5 {
+      color: var(--muted);
+      font-weight: 500;
     }
 
-    #recordBtn.recording {
-      background: #1d4ed8;
-      transform: scale(0.9);
-      box-shadow: 0 4px 8px rgba(29, 78, 216, 0.8);
+    #btn {
+      align-self: flex-start;
+      background: #16a34a;
     }
 
-    #timer {
-      margin-top: 12px;
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #60a5fa;
-      font-family: 'Segoe UI Mono', Consolas, monospace;
-      min-height: 1.8em;
-      letter-spacing: 0.05em;
-      text-shadow: 0 0 8px #3b82f6;
-      white-space: nowrap;
-      user-select: none;
+    #btn[disabled] {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
-    @media (max-width: 540px) {
-      .container {
-        padding: 20px 16px;
-      }
-
-      .message-row {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      #sendMsgBtn {
-        width: 100%;
-        min-width: unset;
-        margin-top: 8px;
-      }
-
-      #chooseProductBtn {
-        width: 100%;
-      }
+    pre#log {
+      background: #020617;
+      color: #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.4;
+      display: none; /* hidden initially */
     }
   </style>
 </head>
 <body>
-  <main class="container" role="main" aria-label="Product chat with voice input">
-    <h1>Product Chat 🤖</h1>
+<div class="app">
 
-    <div class="input-group">
-      <label for="productId">Product ID or SKU</label>
-      <input
-        type="text"
-        id="productId"
-        placeholder="Enter product ID or SKU"
-        autocomplete="off"
-        aria-describedby="productHelp"
-      />
-      <button type="button" id="chooseProductBtn" aria-label="Choose product">Choose Product</button>
+    <div class="container">
+      <input type="text" id="productId" placeholder="Product ID or SKU" />
+      <button onclick="findProduct()">Choose Product</button>
     </div>
 
-    <div id="productPreQuestions" aria-live="polite" style="margin-top: 8px;"></div>
+    <div id="productPreQuestions"></div>
 
-    <hr style="border-color: #475569; margin: 20px 0;" />
+    <div id="loading"></div>
+    <div id="productChat"></div>
 
-    <div id="productChat" aria-live="polite" aria-atomic="false" tabindex="0"></div>
-    <div id="loading" aria-live="assertive" aria-atomic="true"></div>
+    <hr />
+  <div class="container">
+      <input type="text" id="message" placeholder="Type your question..." />
+      <button onclick="sendCustomChat()" id="sendMessage">Send Message</button>
+      <button id="btn">Start Recording</button>
+  </div>
+    
+  <pre id="log">Recording history:</pre>
 
-    <div class="control">
-      <div class="left">
-        <div class="message-row">
-          <div class="input-group" style="flex: 1;" id="textInputGroup">
-            <label for="message">Your Question</label>
-            <input
-              type="text"
-              id="message"
-              placeholder="Type your question..."
-              autocomplete="off"
-              aria-label="Type your question"
-            />
-          </div>
-          <button type="button" id="sendMsgBtn" aria-label="Send message">Send</button>
-        </div>
-      </div>
-      <div class="right">
-        <div id="voiceRecordContainer" aria-label="Voice recording controls">
-          <button
-            id="recordBtn"
-            type="button"
-            aria-pressed="false"
-            aria-label="Click to start or stop talking"
-          >
-            🎤 Click to Start Talking
-          </button>
-          <div id="timer" aria-live="off" aria-atomic="true">00:00.00</div>
-        </div>
-      </div>
-    </div>
-  </main>
+</div>
+<script>
+  let randomString = getRandomSixDigitString();
+  let skuOrId = '';
+  let chatHistory = '';
+  async function findProduct() {
+    const productPreQuestions = document.getElementById('productPreQuestions');
+    productPreQuestions.innerHTML = `<h5>Loading...</h5>`;
+    skuOrId = document.getElementById('productId').value.trim();
+    const regexOnlyDigits = /^\d+$/;
 
-  <script>
-    // Helper functions for chat API calls
-    function getRandomSixDigitString() {
-      const randomNum = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
-      return String(randomNum);
-    }
-
-    function formatText(text) {
-      return text
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // bold **text**
-        .replace(/\n/g, "<br>"); // newline
-    }
-
-    // Globals and element refs
-    let randomString = getRandomSixDigitString();
-    let skuOrId = "";
-    let chatHistory = "";
-
-    const chooseProductBtn = document.getElementById("chooseProductBtn");
-    const sendMsgBtn = document.getElementById("sendMsgBtn");
-    const productIdInput = document.getElementById("productId");
-    const messageInput = document.getElementById("message");
-    const textInputGroup = document.getElementById("textInputGroup");
-
-    const productPreQuestions = document.getElementById("productPreQuestions");
-    const productChat = document.getElementById("productChat");
-    const loading = document.getElementById("loading");
-
-    chooseProductBtn.onclick = findProduct;
-    sendMsgBtn.onclick = sendCustomChat;
-
-    async function findProduct() {
-      productPreQuestions.innerHTML = `<h5>Loading...</h5>`;
-      skuOrId = productIdInput.value.trim();
-      const regexOnlyDigits = /^\d+$/;
-
-      try {
-        const response = await fetch("/api/openai/generateProductQuestions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId: regexOnlyDigits.test(skuOrId) ? skuOrId : "",
-            sessionId: randomString + "_" + skuOrId,
-            locationName: "Mills - Seven Hills",
-            productSku: regexOnlyDigits.test(skuOrId) ? "" : skuOrId,
-          }),
-        });
-
-        if (!response.ok) throw new Error("Network response was not ok");
-
-        const data = await response.json();
-
-        productPreQuestions.innerHTML = `
-          <div style="padding: 16px; width: 100%;">
-            <h5>Pre-message for this product:</h5>
-            <p><a href="#" onclick="preload(event, '${data[0]}')">${data[0]}</a></p>
-            <p><a href="#" onclick="preload(event, '${data[1]}')">${data[1]}</a></p>
-            <p><a href="#" onclick="preload(event, '${data[2]}')">${data[2]}</a></p>
-          </div>
-        `;
-      } catch (error) {
-        productPreQuestions.textContent = "Error: " + error.message;
-      }
-    }
-
-    function preload(event, preload) {
-      event.preventDefault();
-      sendChat(preload);
-    }
-
-    async function sendCustomChat() {
-      const customMessage = messageInput.value.trim();
-      sendChat(customMessage);
-    }
-
-    async function sendChat(message) {
-      if (!message) return;
-      loading.innerHTML = `<h5>Loading...</h5>`;
-
-      try {
-        chatHistory += `<div style="text-align:right; margin-bottom: 8px;">${message}</div><hr />`;
-
-        const response = await fetch("/api/openai/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId: skuOrId,
-            message: message,
-            sessionId: randomString + "_" + skuOrId,
-            locationName: "Mills - Seven Hills",
-          }),
-        });
-
-        if (!response.ok) throw new Error("Network response was not ok");
-
-        const data = await response.json();
-        chatHistory += `<div style="text-align:left; margin-bottom: 8px;">${formatText(data?.answer)}</div><hr />`;
-        productChat.innerHTML = `<div style="padding: 8px 0;">${chatHistory}</div>`;
-        productChat.scrollTop = productChat.scrollHeight;
-
-        loading.innerHTML = "";
-        messageInput.value = "";
-      } catch (error) {
-        productChat.textContent = "Error: " + error.message;
-        loading.innerHTML = "";
-      }
-    }
-
-    // --- Voice recording with auto-send on silence but manual stop ---
-
-    const recordBtn = document.getElementById("recordBtn");
-    const timer = document.getElementById("timer");
-
-    let recorder;
-    let audioChunks = [];
-    let stream;
-    let timerInterval;
-    let startTime;
-    let isRecording = false;
-
-    let audioContext;
-    let analyser;
-    let source;
-    let silenceStart = null;
-
-    const SILENCE_THRESHOLD = 0.01; // volume threshold to consider silence
-    const SILENCE_DELAY = 1000; // ms silence before auto-send
-
-    let isSending = false;
-    let dataArray;
-
-    recordBtn.textContent = "🎤 Click to Start Talking";
-
-    recordBtn.addEventListener("click", () => {
-      if (isRecording) {
-        manualStopRecording();
-      } else {
-        startRecording();
-      }
-    });
-
-    function updateTimer() {
-      const elapsed = Date.now() - startTime;
-      const totalSeconds = Math.floor(elapsed / 1000);
-      const mins = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-      const secs = String(totalSeconds % 60).padStart(2, "0");
-      const ms = String(Math.floor((elapsed % 1000) / 10)).padStart(2, "0");
-      timer.textContent = `${mins}:${secs}.${ms}`;
-    }
-
-    async function startRecording() {
-      if (recorder && recorder.state === "recording") return;
-
-      textInputGroup.style.display = "none";
-      sendMsgBtn.style.display = "none";
-
-      timer.textContent = "00:00.00";
-      silenceStart = null;
-
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (err) {
-        productChat.textContent = "Microphone access denied or not available.";
-        resetUIAfterRecording();
-        return;
-      }
-
-      audioContext = new AudioContext();
-      analyser = audioContext.createAnalyser();
-      source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
-      analyser.fftSize = 2048;
-      dataArray = new Uint8Array(analyser.fftSize);
-
-      recorder = new MediaRecorder(stream);
-      audioChunks = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        clearInterval(timerInterval);
-        if (audioContext) {
-          audioContext.close();
-          audioContext = null;
-        }
-      };
-
-      recorder.start();
-
-      isRecording = true;
-      recordBtn.classList.add("recording");
-      recordBtn.textContent = "Recording… (Click to Stop)";
-      recordBtn.setAttribute("aria-pressed", "true");
-
-      startTime = Date.now();
-      timerInterval = setInterval(updateTimer, 50);
-
-      detectSilence();
-    }
-
-    async function sendCurrentAudioChunk() {
-      if (!recorder || recorder.state !== "recording") return;
-      if (audioChunks.length === 0) return;
-      if (isSending) return; // Prevent overlapping sends
-      isSending = true;
-
-      silenceStart = null; // reset silence timer
-
-      // Stop silence detection loop temporarily
-      // We'll restart it after restarting the recorder
-
-      recorder.stop();
-
-      await new Promise((resolve) => {
-        recorder.addEventListener('stop', () => {
-          resolve();
-        }, { once: true });
+    try {
+      const response = await fetch('/api/openai/generateProductQuestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ productId: regexOnlyDigits.test(skuOrId) ? skuOrId : '', sessionId: randomString + '_' + skuOrId, locationName: 'Mills - Seven Hills', productSku: regexOnlyDigits.test(skuOrId) ? '' : skuOrId }),
       });
 
-      const blob = new Blob(audioChunks, { type: "audio/webm" });
-      audioChunks = [];
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
 
-      const formData = new FormData();
-      formData.append("audio", blob);
+      const data = await response.json();
+      productPreQuestions.innerHTML = `
+        <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
+          <h5>Pre-message for this product:</h5>
+          <p><a href='#' onclick="preload(event, '${data[0]}')">${data[0]}</a></p>
+          <p><a href='#' onclick="preload(event, '${data[1]}')">${data[1]}</a></p>
+          <p><a href='#' onclick="preload(event, '${data[2]}')">${data[2]}</a></p>
+        </div>
+      `;
+    } catch (error) {
+      productPreQuestions.textContent = 'Error: ' + error.message;
+    }
+  }
 
-      loading.textContent = "Transcribing…";
+  async function preload(event, preload) {
+    event.preventDefault(); 
+    console.log("Value passed:", preload);
+    sendChat(preload);
+  }
 
-      try {
-        const res = await fetch("/chat/voicetotext", {
-          method: "POST",
-          body: formData,
+  async function sendCustomChat() {
+    const customMessage = document.getElementById('message').value.trim();
+    sendChat(customMessage);
+  }
+
+  function getRandomSixDigitString() {
+    const randomNum = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+    return String(randomNum);
+  }
+
+  function formatText(text) {
+    return text
+      // **bold** → <strong>bold</strong>
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      // \n → <br>
+      .replace(/\n/g, "<br>");
+  }
+
+  async function sendChat(message) {
+
+    const productChat = document.getElementById('productChat');
+    const loading = document.getElementById('loading');
+    
+    loading.innerHTML = `<h5>Loading...</h5>`;
+  
+    try {
+
+        chatHistory += `<div style="text-align:right;">${message}</div><hr />`;
+        const response = await fetch('/api/openai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productId: skuOrId, message: message, sessionId: randomString + '_' + skuOrId, locationName: 'Mills - Seven Hills' }),
         });
-        const data = await res.json();
 
-        const transcribedText = data.text?.trim() || "";
-        if (transcribedText) {
-          messageInput.value = transcribedText;
-          sendCustomChat();
-        } else {
-          loading.textContent = "No transcription detected.";
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
+
+        const data = await response.json();
+        chatHistory += `<div>${formatText(data?.answer)}</div><hr />`;
+        productChat.innerHTML = `
+          <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
+            ${chatHistory}
+          </div>
+        `;
+
+        loading.innerHTML = ``;
       } catch (error) {
-        loading.textContent = "Error during transcription: " + error.message;
-      } finally {
-        loading.textContent = "";
-        isSending = false;
-      }
-
-      if (isRecording) {
-        try {
-          recorder.start();
-          silenceStart = null;
-          detectSilence();
-        } catch (err) {
-          console.error("Failed to restart recorder:", err);
-          manualStopRecording();
-        }
+        productChat.textContent = 'Error: ' + error.message;
       }
     }
 
-    function detectSilence() {
-      if (!isRecording) return;
 
-      analyser.getByteTimeDomainData(dataArray);
+  const btn = document.getElementById("btn");
+  const logEl = document.getElementById("log");
+  const sendMessageBtn = document.getElementById("sendMessage");
 
-      let sum = 0;
-      for (let i = 0; i < dataArray.length; i++) {
-        let val = (dataArray[i] - 128) / 128;
-        sum += val * val;
-      }
-      const rms = Math.sqrt(sum / dataArray.length);
+  let ws;
+  let recorder;
+  let stream;
+  let recording = false;
 
-      if (rms < SILENCE_THRESHOLD) {
-        if (silenceStart === null) {
-          silenceStart = Date.now();
-        } else if (Date.now() - silenceStart > SILENCE_DELAY && !isSending) {
-          silenceStart = null;
-          sendCurrentAudioChunk();
-          return; // Exit to avoid multiple calls
+  // Silence detection
+  let audioCtx, analyser, dataArray;
+  let silenceStart = null;
+
+  // Per-sentence buffering
+  let sentenceChunks = [];
+
+  const SILENCE_THRESHOLD_DB = -50;
+  const SILENCE_DURATION_MS = 1000;
+  const MIN_BLOB_SIZE = 33000;
+
+  function log(msg) {
+    logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  btn.onclick = () => recording ? stopRecording() : startWS();
+
+  /* =====================
+     WebSocket
+  ===================== */
+  function startWS() {
+    btn.disabled = true;
+
+    ws = new WebSocket("ws://localhost:3000/ws");
+    ws.binaryType = "arraybuffer";
+
+    ws.onopen = () => {
+      log("WebSocket connected");
+      startRecording();
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === "transcription") {
+          log("You said: " + msg.text);
+          sendChat(msg.text);
         }
-      } else {
+      } catch {}
+    };
+
+    ws.onerror = stopRecording;
+    ws.onclose = stopRecording;
+  }
+
+  /* =====================
+     Recording
+  ===================== */
+  async function startRecording() {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    dataArray = new Float32Array(analyser.fftSize);
+    source.connect(analyser);
+
+    recording = true;
+    btn.textContent = "Stop Recording";
+    btn.disabled = false;
+
+    // Disable Send Message button and show recording log
+    sendMessageBtn.disabled = true;
+    sendMessageBtn.style.opacity = "0.6";
+    logEl.style.display = "block";
+
+    startNewRecorder();
+    detectSilence();
+
+    log("Recording started");
+  }
+
+  /* =====================
+     MediaRecorder per sentence
+  ===================== */
+  function startNewRecorder() {
+    sentenceChunks = [];
+
+    recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+
+    recorder.ondataavailable = e => {
+      if (e.data.size > 0) {
+        sentenceChunks.push(e.data);
+      }
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(sentenceChunks, { type: "audio/webm" });
+
+      if (blob.size >= MIN_BLOB_SIZE && ws?.readyState === WebSocket.OPEN) {
+        ws.send(blob);
+        log(`Sent sentence (${Math.round(blob.size / 1024)} KB)`);
+      }
+
+      // Immediately start next sentence if still recording
+      if (recording) {
+        startNewRecorder();
+      }
+    };
+
+    recorder.start();
+  }
+
+  /* =====================
+     Silence Detection
+  ===================== */
+  function detectSilence() {
+    if (!recording) return;
+
+    analyser.getFloatTimeDomainData(dataArray);
+
+    let sum = 0;
+    for (const v of dataArray) sum += v * v;
+    const rms = Math.sqrt(sum / dataArray.length);
+    const db = 20 * Math.log10(rms || 1e-8);
+
+    if (db < SILENCE_THRESHOLD_DB) {
+      silenceStart ??= Date.now();
+      if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
         silenceStart = null;
+        cutSentence();
       }
-
-      if (isRecording) {
-        requestAnimationFrame(detectSilence);
-      }
+    } else {
+      silenceStart = null;
     }
 
-    function manualStopRecording() {
-      if (!isRecording) return;
+    requestAnimationFrame(detectSilence);
+  }
 
-      isRecording = false;
-      recordBtn.classList.remove("recording");
-      recordBtn.textContent = "🎤 Click to Start Talking";
-      recordBtn.setAttribute("aria-pressed", "false");
+  /* =====================
+     Cut sentence (FINALIZE WEBM)
+  ===================== */
+  function cutSentence() {
+    if (!recorder || recorder.state !== "recording") return;
+    recorder.stop(); // 🔑 FINALIZES WEBM
+  }
 
-      if (recorder && recorder.state === "recording") {
-        recorder.stop();
-      }
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-        stream = null;
-      }
-      if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-      }
-      clearInterval(timerInterval);
+  /* =====================
+     Stop everything
+  ===================== */
+  function stopRecording() {
+    recording = false;
+    btn.textContent = "Start Recording";
+    btn.disabled = false;
 
-      // Reset UI for text input
-      resetUIAfterRecording();
+    // Enable Send Message button again
+    sendMessageBtn.disabled = false;
+    sendMessageBtn.style.opacity = "1";
+
+    if (recorder?.state === "recording") {
+      recorder.stop();
     }
 
-    function resetUIAfterRecording() {
-      textInputGroup.style.display = "";
-      sendMsgBtn.style.display = "";
-      timer.textContent = "00:00.00";
+    stream?.getTracks().forEach(t => t.stop());
+    audioCtx?.close();
+
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "stop" }));
+      ws.close();
     }
-  </script>
+
+    log("Recording stopped");
+  }
+</script>
+
 </body>
 </html>
