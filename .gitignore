@@ -7,3 +7,4 @@ dist/
 .env
 service-account.json
 src/ai/guidelineStore.json
+uploads

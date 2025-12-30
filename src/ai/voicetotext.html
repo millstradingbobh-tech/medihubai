@@ -1,229 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Voice to Text</title>
-  <style>
-    /* Reset some basics */
-    *, *::before, *::after {
-      box-sizing: border-box;
-    }
-
+<meta charset="UTF-8" />
+<title>Voice Recorder & Silence Detection</title>
+<style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont;
-      background: #0f172a;
-      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: #121212;
+      color: #e0e0e0;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      height: 100vh;
-      margin: 0;
-      padding: 0 1rem;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    .card {
-      background: #020617;
       padding: 2rem;
-      border-radius: 1rem;
-      width: 100%;
-      max-width: 320px;
-      box-shadow: 0 20px 40px rgba(0,0,0,.5);
-      text-align: center;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-    }
-
-    h2 {
-      font-size: 1.75rem;
-      margin-bottom: 0.25rem;
-    }
-
-    p {
-      font-size: 1rem;
-      margin-top: 0;
-      margin-bottom: 1.5rem;
-      color: #94a3b8;
-      line-height: 1.4;
+      min-height: 100vh;
+      margin: 0;
     }
 
     button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      width: 210px;
-      height: 210px;
-      border-radius: 50%;
+      padding: 1rem 2rem;
       font-size: 1.25rem;
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
-      margin: 0 auto;
-      display: block;
+      background: #6200ee;
+      color: white;
+      transition: background-color 0.3s ease;
+      box-shadow: 0 4px 8px rgb(98 0 238 / 0.3);
       user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: manipulation;
-      line-height: 210px; /* vertically center text */
-      text-align: center;
-
-      /* pressed style improvements */
-      box-shadow: 0 8px 15px rgba(37, 99, 235, 0.6);
-      transition: 
-        background-color 0.3s ease, 
-        transform 0.15s ease, 
-        box-shadow 0.15s ease;
-    }
-
-    button.recording {
-      background: #1d4ed8; /* Slightly darker blue */
-      transform: scale(0.9);
-      box-shadow: 0 4px 8px rgba(29, 78, 216, 0.8);
-    }
-
-    button:active:not(.recording) {
-      background: #1e40af;
-      transform: scale(0.92);
-      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.7);
     }
 
     button:disabled {
-      background: #6b7280;
+      background: #555;
       cursor: not-allowed;
       box-shadow: none;
-      transform: none;
     }
 
-    .timer {
-      margin-top: 1rem;
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: #60a5fa;
-      min-height: 1.5em;
-      user-select: none;
-      font-family: monospace;
+    button:hover:not(:disabled) {
+      background: #3700b3;
     }
 
-    .output {
-      margin-top: 1.5rem;
-      background: #020617;
-      border: 1px solid #1e293b;
-      border-radius: 0.5rem;
+    pre {
+      background: #1e1e1e;
+      border-radius: 8px;
       padding: 1rem;
-      min-height: 4rem;
-      text-align: left;
-      font-size: 1rem;
+      margin-top: 1.5rem;
+      width: 90vw;
+      max-width: 600px;
+      height: 300px;
+      overflow-y: auto;
       white-space: pre-wrap;
-      word-break: break-word;
-      max-width: 100%;
-      overflow-wrap: break-word;
+      box-shadow: inset 0 0 10px rgb(0 0 0 / 0.7);
+      font-size: 1rem;
+      line-height: 1.4;
+    }
+
+    header {
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #bb86fc;
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>🎤 Voice to Text</h2>
-    <p>Press and hold the button to record, release to stop and send</p>
 
-    <button id="recordBtn" type="button">Hold to Speak</button>
-    <div class="timer" id="timer">00:00.00</div>
+<header>Voice Recorder Playground</header>
+<button id="btn">Start Recording</button>
+<pre id="log"></pre>
 
-    <div class="output" id="result">Waiting…</div>
-  </div>
+<script>
+const btn = document.getElementById("btn");
+const logEl = document.getElementById("log");
 
-  <script>
-    let recorder;
-    let audioChunks = [];
-    let stream;
-    let timerInterval;
-    let startTime;
+let ws;
+let recorder;
+let stream;
+let recording = false;
 
-    const btn = document.getElementById("recordBtn");
-    const result = document.getElementById("result");
-    const timer = document.getElementById("timer");
+// Silence detection
+let audioCtx, analyser, dataArray;
+let silenceStart = null;
 
-    btn.addEventListener("mousedown", startRecording);
-    btn.addEventListener("touchstart", (e) => { e.preventDefault(); startRecording(); }, { passive: false });
+// Per-sentence buffering
+let sentenceChunks = [];
 
-    btn.addEventListener("mouseup", stopRecording);
-    btn.addEventListener("touchend", (e) => { e.preventDefault(); stopRecording(); });
+const SILENCE_THRESHOLD_DB = -50;
+const SILENCE_DURATION_MS = 1000;
+const MIN_BLOB_SIZE = 33000;
 
-    function updateTimer() {
-      const elapsed = Date.now() - startTime;
-      const totalSeconds = Math.floor(elapsed / 1000);
-      const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-      const secs = String(totalSeconds % 60).padStart(2, '0');
-      const ms = String(Math.floor((elapsed % 1000) / 10)).padStart(2, '0');
-      timer.textContent = `${mins}:${secs}.${ms}`;
-    }
+function log(msg) {
+  logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
 
-    async function startRecording() {
-      if (recorder && recorder.state === "recording") return;
+btn.onclick = () => recording ? stopRecording() : startWS();
 
-      result.textContent = "";
-      timer.textContent = "00:00.00";
+/* =====================
+   WebSocket
+===================== */
+function startWS() {
+  btn.disabled = true;
 
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (err) {
-        result.textContent = "Microphone access denied or not available.";
-        return;
+  ws = new WebSocket("ws://localhost:3000/ws");
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = () => {
+    log("WebSocket connected");
+    startRecording();
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "transcription") {
+        log("You said: " + msg.text);
       }
+    } catch {}
+  };
 
-      recorder = new MediaRecorder(stream);
-      audioChunks = [];
+  ws.onerror = stopRecording;
+  ws.onclose = stopRecording;
+}
 
-      recorder.ondataavailable = e => {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
+/* =====================
+   Recording
+===================== */
+async function startRecording() {
+  stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      recorder.onstop = async () => {
-        // Stop timer immediately on release
-        clearInterval(timerInterval);
+  audioCtx = new AudioContext();
+  const source = audioCtx.createMediaStreamSource(stream);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  dataArray = new Float32Array(analyser.fftSize);
+  source.connect(analyser);
 
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", blob);
+  recording = true;
+  btn.textContent = "Stop Recording";
+  btn.disabled = false;
 
-        result.textContent = "Transcribing…";
+  startNewRecorder();
+  detectSilence();
 
-        try {
-          const res = await fetch("/chat/voicetotext", {
-            method: "POST",
-            body: formData
-          });
-          const data = await res.json();
-          result.textContent = data.text || "No transcription";
-        } catch (error) {
-          result.textContent = "Error during transcription: " + error.message;
-        } finally {
-          // Reset timer only after response
-          timer.textContent = "00:00.00";
+  log("Recording started");
+}
 
-          if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-          }
-        }
-      };
+/* =====================
+   MediaRecorder per sentence
+===================== */
+function startNewRecorder() {
+  sentenceChunks = [];
 
-      recorder.start();
+  recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 
-      btn.classList.add("recording");
-      btn.textContent = "Recording…";
+  recorder.ondataavailable = e => {
+    if (e.data.size > 0) {
+      sentenceChunks.push(e.data);
+    }
+  };
 
-      startTime = Date.now();
-      timerInterval = setInterval(updateTimer, 50);
+  recorder.onstop = () => {
+    const blob = new Blob(sentenceChunks, { type: "audio/webm" });
+
+    if (blob.size >= MIN_BLOB_SIZE && ws?.readyState === WebSocket.OPEN) {
+      ws.send(blob);
+      log(`Sent sentence (${Math.round(blob.size / 1024)} KB)`);
     }
 
-    function stopRecording() {
-      if (recorder && recorder.state === "recording") {
-        recorder.stop();
-        btn.classList.remove("recording");
-        btn.textContent = "Hold to Speak";
-      }
+    // Immediately start next sentence if still recording
+    if (recording) {
+      startNewRecorder();
     }
-  </script>
+  };
+
+  recorder.start();
+}
+
+/* =====================
+   Silence Detection
+===================== */
+function detectSilence() {
+  if (!recording) return;
+
+  analyser.getFloatTimeDomainData(dataArray);
+
+  let sum = 0;
+  for (const v of dataArray) sum += v * v;
+  const rms = Math.sqrt(sum / dataArray.length);
+  const db = 20 * Math.log10(rms || 1e-8);
+
+  if (db < SILENCE_THRESHOLD_DB) {
+    silenceStart ??= Date.now();
+    if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
+      silenceStart = null;
+      cutSentence();
+    }
+  } else {
+    silenceStart = null;
+  }
+
+  requestAnimationFrame(detectSilence);
+}
+
+/* =====================
+   Cut sentence (FINALIZE WEBM)
+===================== */
+function cutSentence() {
+  if (!recorder || recorder.state !== "recording") return;
+  recorder.stop(); // 🔑 FINALIZES WEBM
+}
+
+/* =====================
+   Stop everything
+===================== */
+function stopRecording() {
+  recording = false;
+  btn.textContent = "Start Recording";
+  btn.disabled = false;
+
+  if (recorder?.state === "recording") {
+    recorder.stop();
+  }
+
+  stream?.getTracks().forEach(t => t.stop());
+  audioCtx?.close();
+
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "stop" }));
+    ws.close();
+  }
+
+  log("Recording stopped");
+}
+</script>
 </body>
 </html>

@@ -12,11 +12,12 @@ import { getMagentoProductById } from './src/magento/getProductDetail';
 import { getChatHistory } from './src/fireStore/getChatHistory';
 import { getDeviceChat } from './src/fireStore/getDeviceChat';
 import { readGuideline, saveGuideline } from './src/ai/guideline';
-import fs from "fs/promises";
 import { getProductBySku } from './src/sanity/getProductBySku';
 import multer from "multer";
 import cors from "cors";
-import { voiceToText } from './src/ai/voiceToText';
+import http from "http";
+import WebSocket from "ws";
+import { VoiceProcessor } from './src/ai/voiceToText';
 
 const upload = multer({ dest: "uploads/", limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -28,6 +29,10 @@ const app = express();
 app.use(express.json());
 app.use(apiInterceptor());
 app.use(cors());
+
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
 // initProducts();
 
 app.get('/', (req, res) => {
@@ -102,14 +107,52 @@ app.get("/chat/guideline", async (_req, res) => {
   }
 });
 
-app.post("/chat/voicetotext", upload.single("audio"), async (req, res) => {
-    try {
-        res.json(await voiceToText(req, res));
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: "Voice transcription failed" });
-    }
-});
+// app.post("/chat/voicetotext", upload.single("audio"), async (req, res) => {
+//     try {
+//         res.json(await voiceToText(req, res));
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: "Voice transcription failed" });
+//     }
+// });
 
 
 app.listen(8080, "0.0.0.0");
+
+
+wss.on("connection", (ws) => {
+  ws.on("message", async (msg: WebSocket.RawData) => {
+    // ---- CONTROL (JSON) ----
+    if (!Buffer.isBuffer(msg)) {
+      try {
+        const data = JSON.parse(msg.toString());
+        if (data.type === "stop") {
+          ws.close();
+        }
+      } catch {}
+      return;
+    }
+
+    // ---- AUDIO (WebM sentence) ----
+    const processor = new VoiceProcessor(
+      (text) => {
+        ws.send(JSON.stringify({ type: "transcription", text }));
+      },
+      () => {
+        ws.send(JSON.stringify({ type: "transcriptionStart" }));
+      }
+    );
+
+    try {
+      await processor.processWebmBuffer(msg);
+    } catch (err) {
+      console.error("Processing failed:", err);
+    }
+  });
+});
+
+
+
+server.listen(3000, () => {
+  console.log("WS voice server on ws://localhost:3000/ws");
+});

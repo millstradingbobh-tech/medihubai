@@ -26,20 +26,20 @@
     }
 
     .control {
-    display: flex;
-    align-items: center;
-    padding: 10px 20px;
-    border: 1px solid #60a5fa;
-  }
-  .left {
-    flex: 1; /* takes all remaining space */
-    padding: 10px;
-  }
-  .right {
-    width: 300px; /* fixed width */
-    padding: 10px;
-    text-align: right;
-  }
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border: 1px solid #60a5fa;
+    }
+    .left {
+      flex: 1; /* takes all remaining space */
+      padding: 10px;
+    }
+    .right {
+      width: 300px; /* fixed width */
+      padding: 10px;
+      text-align: right;
+    }
 
     .container {
       background: #1e293b;
@@ -166,6 +166,7 @@
       overflow-wrap: break-word;
       word-break: break-word;
       user-select: text;
+      max-height: 400px;
     }
 
     #productPreQuestions {
@@ -229,12 +230,6 @@
       box-shadow: 0 4px 8px rgba(29, 78, 216, 0.8);
     }
 
-    #recordBtn:active:not(.recording) {
-      background: #1e40af;
-      transform: scale(0.92);
-      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.7);
-    }
-
     #timer {
       margin-top: 12px;
       font-size: 1.4rem;
@@ -294,42 +289,51 @@
     <div id="loading" aria-live="assertive" aria-atomic="true"></div>
 
     <div class="control">
-      <div class="left"><div class="message-row">
-      <div class="input-group" style="flex: 1;">
-        <label for="message">Your Question</label>
-        <input
-          type="text"
-          id="message"
-          placeholder="Type your question..."
-          autocomplete="off"
-          aria-label="Type your question"
-        />
+      <div class="left">
+        <div class="message-row">
+          <div class="input-group" style="flex: 1;" id="textInputGroup">
+            <label for="message">Your Question</label>
+            <input
+              type="text"
+              id="message"
+              placeholder="Type your question..."
+              autocomplete="off"
+              aria-label="Type your question"
+            />
+          </div>
+          <button type="button" id="sendMsgBtn" aria-label="Send message">Send</button>
+        </div>
       </div>
-      <button type="button" id="sendMsgBtn" aria-label="Send message">Send</button>
-    </div></div>
-      <div class="right"><div id="voiceRecordContainer" aria-label="Voice recording controls">
-      <button
-        id="recordBtn"
-        type="button"
-        aria-pressed="false"
-        aria-label="Hold to speak, release to stop and send"
-      >
-        🎤 <br />Hold to Speak
-      </button>
-      <div id="timer" aria-live="off" aria-atomic="true">00:00.00</div>
-    </div></div>
+      <div class="right">
+        <div id="voiceRecordContainer" aria-label="Voice recording controls">
+          <button
+            id="recordBtn"
+            type="button"
+            aria-pressed="false"
+            aria-label="Click to start or stop talking"
+          >
+            🎤 Click to Start Talking
+          </button>
+          <div id="timer" aria-live="off" aria-atomic="true">00:00.00</div>
+        </div>
+      </div>
     </div>
-
-    
-
-    
-
-    
   </main>
 
   <script>
-    // Your existing chat logic, slightly updated for new button IDs
+    // Helper functions for chat API calls
+    function getRandomSixDigitString() {
+      const randomNum = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
+      return String(randomNum);
+    }
 
+    function formatText(text) {
+      return text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // bold **text**
+        .replace(/\n/g, "<br>"); // newline
+    }
+
+    // Globals and element refs
     let randomString = getRandomSixDigitString();
     let skuOrId = "";
     let chatHistory = "";
@@ -338,6 +342,7 @@
     const sendMsgBtn = document.getElementById("sendMsgBtn");
     const productIdInput = document.getElementById("productId");
     const messageInput = document.getElementById("message");
+    const textInputGroup = document.getElementById("textInputGroup");
 
     const productPreQuestions = document.getElementById("productPreQuestions");
     const productChat = document.getElementById("productChat");
@@ -368,7 +373,7 @@
         const data = await response.json();
 
         productPreQuestions.innerHTML = `
-          <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
+          <div style="padding: 16px; width: 100%;">
             <h5>Pre-message for this product:</h5>
             <p><a href="#" onclick="preload(event, '${data[0]}')">${data[0]}</a></p>
             <p><a href="#" onclick="preload(event, '${data[1]}')">${data[1]}</a></p>
@@ -380,7 +385,7 @@
       }
     }
 
-    async function preload(event, preload) {
+    function preload(event, preload) {
       event.preventDefault();
       sendChat(preload);
     }
@@ -388,17 +393,6 @@
     async function sendCustomChat() {
       const customMessage = messageInput.value.trim();
       sendChat(customMessage);
-    }
-
-    function getRandomSixDigitString() {
-      const randomNum = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
-      return String(randomNum);
-    }
-
-    function formatText(text) {
-      return text
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") // bold **text**
-        .replace(/\n/g, "<br>"); // newline
     }
 
     async function sendChat(message) {
@@ -434,28 +428,37 @@
       }
     }
 
-    // --- Voice recording code ---
+    // --- Voice recording with auto-send on silence but manual stop ---
+
+    const recordBtn = document.getElementById("recordBtn");
+    const timer = document.getElementById("timer");
 
     let recorder;
     let audioChunks = [];
     let stream;
     let timerInterval;
     let startTime;
+    let isRecording = false;
 
-    const recordBtn = document.getElementById("recordBtn");
-    const timer = document.getElementById("timer");
-    const result = document.getElementById("productChat");
+    let audioContext;
+    let analyser;
+    let source;
+    let silenceStart = null;
 
-    recordBtn.addEventListener("mousedown", startRecording);
-    recordBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      startRecording();
-    }, { passive: false });
+    const SILENCE_THRESHOLD = 0.01; // volume threshold to consider silence
+    const SILENCE_DELAY = 1000; // ms silence before auto-send
 
-    recordBtn.addEventListener("mouseup", stopRecording);
-    recordBtn.addEventListener("touchend", (e) => {
-      e.preventDefault();
-      stopRecording();
+    let isSending = false;
+    let dataArray;
+
+    recordBtn.textContent = "🎤 Click to Start Talking";
+
+    recordBtn.addEventListener("click", () => {
+      if (isRecording) {
+        manualStopRecording();
+      } else {
+        startRecording();
+      }
     });
 
     function updateTimer() {
@@ -470,16 +473,26 @@
     async function startRecording() {
       if (recorder && recorder.state === "recording") return;
 
-      // Clear any previous transcription results
-      result.innerHTML = "";
+      textInputGroup.style.display = "none";
+      sendMsgBtn.style.display = "none";
+
       timer.textContent = "00:00.00";
+      silenceStart = null;
 
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (err) {
-        result.textContent = "Microphone access denied or not available.";
+        productChat.textContent = "Microphone access denied or not available.";
+        resetUIAfterRecording();
         return;
       }
+
+      audioContext = new AudioContext();
+      analyser = audioContext.createAnalyser();
+      source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      analyser.fftSize = 2048;
+      dataArray = new Uint8Array(analyser.fftSize);
 
       recorder = new MediaRecorder(stream);
       audioChunks = [];
@@ -488,59 +501,145 @@
         if (e.data.size > 0) audioChunks.push(e.data);
       };
 
-      recorder.onstop = async () => {
+      recorder.onstop = () => {
         clearInterval(timerInterval);
-
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", blob);
-
-        result.textContent = "Transcribing…";
-
-        try {
-          const res = await fetch("/chat/voicetotext", {
-            method: "POST",
-            body: formData,
-          });
-          const data = await res.json();
-
-          // Insert transcription as a new message, send chat automatically
-          const transcribedText = data.text?.trim() || "";
-          if (transcribedText) {
-            messageInput.value = transcribedText;
-            sendCustomChat();
-          } else {
-            result.textContent = "No transcription detected.";
-          }
-        } catch (error) {
-          result.textContent = "Error during transcription: " + error.message;
-        } finally {
-          timer.textContent = "00:00.00";
-
-          if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
-            stream = null;
-          }
+        if (audioContext) {
+          audioContext.close();
+          audioContext = null;
         }
       };
 
       recorder.start();
 
+      isRecording = true;
       recordBtn.classList.add("recording");
-      recordBtn.textContent = "Recording…";
+      recordBtn.textContent = "Recording… (Click to Stop)";
       recordBtn.setAttribute("aria-pressed", "true");
 
       startTime = Date.now();
       timerInterval = setInterval(updateTimer, 50);
+
+      detectSilence();
     }
 
-    function stopRecording() {
+    async function sendCurrentAudioChunk() {
+      if (!recorder || recorder.state !== "recording") return;
+      if (audioChunks.length === 0) return;
+      if (isSending) return; // Prevent overlapping sends
+      isSending = true;
+
+      silenceStart = null; // reset silence timer
+
+      // Stop silence detection loop temporarily
+      // We'll restart it after restarting the recorder
+
+      recorder.stop();
+
+      await new Promise((resolve) => {
+        recorder.addEventListener('stop', () => {
+          resolve();
+        }, { once: true });
+      });
+
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      audioChunks = [];
+
+      const formData = new FormData();
+      formData.append("audio", blob);
+
+      loading.textContent = "Transcribing…";
+
+      try {
+        const res = await fetch("/chat/voicetotext", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+
+        const transcribedText = data.text?.trim() || "";
+        if (transcribedText) {
+          messageInput.value = transcribedText;
+          sendCustomChat();
+        } else {
+          loading.textContent = "No transcription detected.";
+        }
+      } catch (error) {
+        loading.textContent = "Error during transcription: " + error.message;
+      } finally {
+        loading.textContent = "";
+        isSending = false;
+      }
+
+      if (isRecording) {
+        try {
+          recorder.start();
+          silenceStart = null;
+          detectSilence();
+        } catch (err) {
+          console.error("Failed to restart recorder:", err);
+          manualStopRecording();
+        }
+      }
+    }
+
+    function detectSilence() {
+      if (!isRecording) return;
+
+      analyser.getByteTimeDomainData(dataArray);
+
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        let val = (dataArray[i] - 128) / 128;
+        sum += val * val;
+      }
+      const rms = Math.sqrt(sum / dataArray.length);
+
+      if (rms < SILENCE_THRESHOLD) {
+        if (silenceStart === null) {
+          silenceStart = Date.now();
+        } else if (Date.now() - silenceStart > SILENCE_DELAY && !isSending) {
+          silenceStart = null;
+          sendCurrentAudioChunk();
+          return; // Exit to avoid multiple calls
+        }
+      } else {
+        silenceStart = null;
+      }
+
+      if (isRecording) {
+        requestAnimationFrame(detectSilence);
+      }
+    }
+
+    function manualStopRecording() {
+      if (!isRecording) return;
+
+      isRecording = false;
+      recordBtn.classList.remove("recording");
+      recordBtn.textContent = "🎤 Click to Start Talking";
+      recordBtn.setAttribute("aria-pressed", "false");
+
       if (recorder && recorder.state === "recording") {
         recorder.stop();
-        recordBtn.classList.remove("recording");
-        recordBtn.textContent = "🎤 Hold to Speak";
-        recordBtn.setAttribute("aria-pressed", "false");
       }
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = null;
+      }
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+      clearInterval(timerInterval);
+
+      // Reset UI for text input
+      resetUIAfterRecording();
+    }
+
+    function resetUIAfterRecording() {
+      textInputGroup.style.display = "";
+      sendMsgBtn.style.display = "";
+      timer.textContent = "00:00.00";
     }
   </script>
 </body>
