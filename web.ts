@@ -117,7 +117,7 @@ app.get("/chat/guideline", async (_req, res) => {
 // });
 
 
-app.listen(8080, "0.0.0.0");
+// app.listen(8080, "0.0.0.0");
 
 
 wss.on("connection", (ws) => {
