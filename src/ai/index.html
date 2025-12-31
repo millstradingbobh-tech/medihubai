@@ -527,12 +527,14 @@ pre#log {
     const db = 20 * Math.log10(rms || 1e-8);
 
     if (db < SILENCE_THRESHOLD_DB) {
+      btn.textContent = "Stop Recording";
       silenceStart ??= Date.now();
       if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
         silenceStart = null;
         cutSentence();
       }
     } else {
+      btn.textContent = "...Recording...";
       silenceStart = null;
     }
 
