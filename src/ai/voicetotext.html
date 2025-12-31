@@ -101,7 +101,7 @@ btn.onclick = () => recording ? stopRecording() : startWS();
 ===================== */
 function startWS() {
   btn.disabled = true;
-    ws = new WebSocket("ws://0.0.0.0:3000/ws");
+    ws = new WebSocket("wss://0.0.0.0:3000/ws");
 //   ws = new WebSocket("ws://localhost:3000/ws");
   ws.binaryType = "arraybuffer";
 
