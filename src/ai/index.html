@@ -7,159 +7,221 @@
   <title>Product chat</title>
   <style>
     :root {
-      --primary: #2563eb;
-      --bg: #f8fafc;
-      --card: #ffffff;
-      --border: #e5e7eb;
-      --text: #0f172a;
-      --muted: #64748b;
-      --radius: 14px;
-    }
+  --primary: #2563eb;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --radius: 14px;
+}
 
-    * {
-      box-sizing: border-box;
-    }
+* {
+  box-sizing: border-box;
+}
 
-    body {
-      margin: 0;
-      background: var(--bg);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      color: var(--text);
-      display: flex;
-      justify-content: center;
-      padding: 24px;
-    }
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
 
-    .app {
-      width: 100%;
-      max-width: 900px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+.app {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-    h5 {
-      margin: 0 0 10px;
-    }
+h5 {
+  margin: 0 0 10px;
+}
 
-    hr {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 10px 0;
-      clear: both;
-    }
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+  clear: both;
+}
 
-    .container {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
-    }
+.container {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+}
 
-    input[type="text"] {
-      flex: 1;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      font-size: 15px;
-    }
+input[type="text"] {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 15px;
+}
 
-    input[type="text"]:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary);
+}
 
-    button {
-      padding: 12px 16px;
-      border-radius: 10px;
-      border: none;
-      background: var(--primary);
-      color: #fff;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.05s ease, opacity 0.15s ease;
-    }
+button {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.05s ease, opacity 0.15s ease;
+}
 
-    button:hover {
-      opacity: 0.9;
-    }
+button:hover {
+  opacity: 0.9;
+}
 
-    button:active {
-      transform: scale(0.97);
-    }
+button:active {
+  transform: scale(0.97);
+}
 
-    #productPreQuestions > div {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
-    }
+#productPreQuestions > div {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+}
 
-    #productPreQuestions a {
-      display: block;
-      padding: 8px 0;
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 500;
-    }
+#productPreQuestions a {
+  display: block;
+  padding: 8px 0;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
 
-    #productPreQuestions a:hover {
-      text-decoration: underline;
-    }
+#productPreQuestions a:hover {
+  text-decoration: underline;
+}
 
-    #productChat .mdl-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.04);
-    }
+#productChat .mdl-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.04);
+}
 
-    #productChat div[style*="text-align:right"] {
-      background: #e0e7ff;
-      padding: 10px 14px;
-      border-radius: 12px 12px 4px 12px;
-      margin-left: auto;
-      margin-bottom: 10px;
-      font-weight: 500;
-      float:right;
-    }
+#productChat div[style*="text-align:right"] {
+  background: #e0e7ff;
+  padding: 10px 14px;
+  border-radius: 12px 12px 4px 12px;
+  margin-left: auto;
+  margin-bottom: 10px;
+  font-weight: 500;
+  float:right;
+  max-width: 70%;
+  word-wrap: break-word;
+}
 
-    #productChat div:not([style*="text-align:right"]) {
-      background: #f1f5f9;
-      padding: 10px 14px;
-      border-radius: 12px 12px 12px 4px;
-      margin-bottom: 10px;
-    }
+#productChat div:not([style*="text-align:right"]) {
+  background: #f1f5f9;
+  padding: 10px 14px;
+  border-radius: 12px 12px 12px 4px;
+  margin-bottom: 10px;
+  max-width: 70%;
+  word-wrap: break-word;
+}
 
-    #loading h5 {
-      color: var(--muted);
-      font-weight: 500;
-    }
+#loading h5 {
+  color: var(--muted);
+  font-weight: 500;
+}
 
-    #btn {
-      align-self: flex-start;
-      background: #16a34a;
-    }
+#btn {
+  align-self: flex-start;
+  background: #16a34a;
+}
 
-    #btn[disabled] {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+#btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-    pre#log {
-      background: #020617;
-      color: #e5e7eb;
-      border-radius: 12px;
-      padding: 12px;
-      max-height: 120px;
-      overflow-y: auto;
-      font-size: 13px;
-      line-height: 1.4;
-      display: none; /* hidden initially */
-    }
+pre#log {
+  background: #020617;
+  color: #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.4;
+  display: none; /* hidden initially */
+}
+
+/* ==============================
+   MOBILE / SMALL SCREEN UPDATES
+   ============================== */
+
+@media (max-width: 600px) {
+  body {
+    padding: 12px;
+  }
+
+  .container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  input[type="text"] {
+    font-size: 18px;
+    padding: 14px 16px;
+  }
+
+  button {
+    width: 100%;
+    padding: 14px 0;
+    font-size: 17px;
+    border-radius: 12px;
+  }
+
+  #productChat div[style*="text-align:right"],
+  #productChat div:not([style*="text-align:right"]) {
+    max-width: 100%;
+    margin-left: 0 !important;
+    float: none !important;
+  }
+
+  #btn {
+    align-self: stretch;
+  }
+
+  #btn.recording {
+    background: #dc2626; /* red */
+  }
+
+  #productPreQuestions > div {
+    padding: 12px;
+  }
+
+  #productPreQuestions a {
+    font-size: 16px;
+  }
+
+  pre#log {
+    font-size: 14px;
+    max-height: 180px;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -316,12 +378,14 @@
   function startWS() {
     btn.disabled = true;
 
-    ws = new WebSocket("wss://medihubai-476149103615.australia-southeast1.run.app/ws");
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    ws = new WebSocket(isLocalhost ?  `ws://localhost:8080/ws` : "wss://medihubai-476149103615.australia-southeast1.run.app/ws");
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
       log("WebSocket connected");
       startRecording();
+      btn.classList.add("recording");
     };
 
     ws.onmessage = (e) => {
@@ -438,6 +502,7 @@
     recording = false;
     btn.textContent = "Start Recording";
     btn.disabled = false;
+    btn.classList.remove("recording");
 
     // Enable Send Message button again
     sendMessageBtn.disabled = false;

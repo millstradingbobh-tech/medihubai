@@ -101,8 +101,8 @@ btn.onclick = () => recording ? stopRecording() : startWS();
 ===================== */
 function startWS() {
   btn.disabled = true;
-    ws = new WebSocket("wss://medihubai-476149103615.australia-southeast1.run.app/ws");
-//   ws = new WebSocket("ws://localhost:8080/ws");
+  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  ws = new WebSocket(isLocalhost ?  `ws://localhost:8080/ws` : "wss://medihubai-476149103615.australia-southeast1.run.app/ws");
   ws.binaryType = "arraybuffer";
 
   ws.onopen = () => {
