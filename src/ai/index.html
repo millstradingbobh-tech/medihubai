@@ -250,7 +250,7 @@ pre#log {
 <script>
   let randomString = getRandomSixDigitString();
   let skuOrId = '';
-  let chatHistory = '';
+  let chatHistory = [];
   async function findProduct() {
     const productPreQuestions = document.getElementById('productPreQuestions');
     productPreQuestions.innerHTML = `<h5>Loading...</h5>`;
@@ -272,7 +272,7 @@ pre#log {
 
       const data = await response.json();
       productPreQuestions.innerHTML = `
-        <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
+        <div style="padding: 16px; width: 100%;">
           <h5>Pre-message for this product:</h5>
           <p><a href='#' onclick="preload(event, '${data[0]}')">${data[0]}</a></p>
           <p><a href='#' onclick="preload(event, '${data[1]}')">${data[1]}</a></p>
@@ -308,6 +308,19 @@ pre#log {
       .replace(/\n/g, "<br>");
   }
 
+  function convertChatHistory() {
+    let response = '';
+    for (const item of chatHistory) {
+      response += `<div style="text-align:${item.direction === 'right'? 'right' : 'left'};">${item.text}</div><hr />`
+    };
+    const productChat = document.getElementById('productChat');
+    productChat.innerHTML = `
+      <div style="padding: 16px; width: 100%;">
+        ${response}
+      </div>
+    `;
+  }
+
   async function sendChat(message) {
 
     const productChat = document.getElementById('productChat');
@@ -317,7 +330,10 @@ pre#log {
   
     try {
 
-        chatHistory += `<div style="text-align:right;">${message}</div><hr />`;
+        chatHistory.push({
+          direction: 'right',
+          text: message
+        });
         const response = await fetch('/api/openai/chat', {
           method: 'POST',
           headers: {
@@ -331,12 +347,13 @@ pre#log {
         }
 
         const data = await response.json();
-        chatHistory += `<div>${formatText(data?.answer)}</div><hr />`;
-        productChat.innerHTML = `
-          <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
-            ${chatHistory}
-          </div>
-        `;
+        chatHistory.push(
+          {
+            direction: 'left',
+            text: formatText(data?.answer)
+          }
+        )
+        convertChatHistory();
 
         loading.innerHTML = ``;
       } catch (error) {
@@ -401,24 +418,26 @@ pre#log {
         const loading = document.getElementById('loading');
         if (msg.type === "transcription") {
           log("You said: " + msg.text);
-          loading.innerHTML = `<h5>Loading...</h5>`;
-          chatHistory += `<div style="text-align:right;">${msg.text}</div><hr />`;
-          productChat.innerHTML = `
-            <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
-              ${chatHistory}
-            </div>
-          `;
+          chatHistory.pop();
+          chatHistory.push({direction: 'right', text: msg.text});
+          convertChatHistory();
+
+          chatHistory.push(
+            {
+              direction: 'left',
+              text: 'I am thinking...'
+            }
+          )
+          convertChatHistory();
         }
         if (msg.type === "chatResponse") {
           log("We said: " + msg.text);
           
           const data = msg.text;
-          chatHistory += `<div>${formatText(data)}</div><hr />`;
-          productChat.innerHTML = `
-            <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
-              ${chatHistory}
-            </div>
-          `;
+          chatHistory.pop();
+          chatHistory.push({direction: 'left', text: formatText(data)});
+          convertChatHistory();
+          
           loading.innerHTML = ``;
         }
       } catch {}
@@ -474,6 +493,13 @@ pre#log {
       const blob = new Blob(sentenceChunks, { type: "audio/webm" });
 
       if (blob.size >= MIN_BLOB_SIZE && ws?.readyState === WebSocket.OPEN) {
+        chatHistory.push(
+          {
+            direction: 'right',
+            text: 'I am analysing your voice...'
+          }
+        )
+        convertChatHistory();
         ws.send(blob);
         log(`Sent sentence (${Math.round(blob.size / 1024)} KB)`);
       }
