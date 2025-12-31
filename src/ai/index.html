@@ -384,6 +384,12 @@ pre#log {
 
     ws.onopen = () => {
       log("WebSocket connected");
+      ws.send(JSON.stringify({
+        type: 'init',
+        sku: skuOrId,
+        sessionId: randomString + '_' + skuOrId,
+        locationName: 'Mills - Seven Hills'
+      }));
       startRecording();
       btn.classList.add("recording");
     };
@@ -391,9 +397,29 @@ pre#log {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
+        const productChat = document.getElementById('productChat');
+        const loading = document.getElementById('loading');
         if (msg.type === "transcription") {
           log("You said: " + msg.text);
-          sendChat(msg.text);
+          loading.innerHTML = `<h5>Loading...</h5>`;
+          chatHistory += `<div style="text-align:right;">${msg.text}</div><hr />`;
+          productChat.innerHTML = `
+            <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
+              ${chatHistory}
+            </div>
+          `;
+        }
+        if (msg.type === "chatResponse") {
+          log("We said: " + msg.text);
+          
+          const data = msg.text;
+          chatHistory += `<div>${formatText(data)}</div><hr />`;
+          productChat.innerHTML = `
+            <div class="mdl-card mdl-shadow--2dp" style="padding: 16px; width: 100%;">
+              ${chatHistory}
+            </div>
+          `;
+          loading.innerHTML = ``;
         }
       } catch {}
     };

@@ -120,38 +120,81 @@ app.get("/chat/guideline", async (_req, res) => {
 // app.listen(8080, "0.0.0.0");
 
 
-wss.on("connection", (ws) => {
-  ws.on("message", async (msg: WebSocket.RawData) => {
-    // ---- CONTROL (JSON) ----
-    if (!Buffer.isBuffer(msg)) {
+wss.on('connection', (ws) => {
+  let processor: VoiceProcessor | null = null;
+
+  ws.on('message', async (data, isBinary) => {
+
+    // ---------- JSON CONTROL ----------
+    if (!isBinary) {
       try {
-        const data = JSON.parse(msg.toString());
-        if (data.type === "stop") {
-          ws.close();
+        const msg = JSON.parse(data.toString());
+
+        if (msg.type === 'init') {
+          const { sku, sessionId, locationName } = msg;
+
+          processor = new VoiceProcessor(
+            (text) => {
+              ws.send(JSON.stringify({
+                type: 'transcription',
+                text,
+                sku,
+                sessionId,
+                locationName
+              }));
+            },
+            (text) => {
+              ws.send(JSON.stringify({ type: 'chatResponse', text }));
+            }
+          );
+
+          processor.setWSProductData(sku, sessionId, locationName);
+
+          console.log('✅ WS init received:', {
+            sku,
+            sessionId,
+            locationName
+          });
+          return;
         }
-      } catch {}
+
+        if (msg.type === 'stop') {
+          ws.close();
+          return;
+        }
+
+      } catch (err) {
+        console.error('Invalid JSON:', err);
+      }
       return;
     }
 
-    // ---- AUDIO (WebM sentence) ----
-    const processor = new VoiceProcessor(
-      (text) => {
-        ws.send(JSON.stringify({ type: "transcription", text }));
-      },
-      () => {
-        ws.send(JSON.stringify({ type: "transcriptionStart" }));
-      }
-    );
+    // ---------- AUDIO (binary) ----------
+    if (!processor) {
+      console.warn('⚠️ Audio received before init');
+      return;
+    }
 
     try {
-      await processor.processWebmBuffer(msg);
+        const buffer = toBuffer(data);
+        await processor.processWebmBuffer(buffer);
     } catch (err) {
-      console.error("Processing failed:", err);
+      console.error('Processing failed:', err);
     }
+  });
+
+  ws.on('close', () => {
+    processor = null;
+    console.log('WS closed');
   });
 });
 
-
+function toBuffer(data: WebSocket.RawData): Buffer {
+  if (Buffer.isBuffer(data)) return data;
+  if (data instanceof ArrayBuffer) return Buffer.from(data);
+  if (Array.isArray(data)) return Buffer.concat(data);
+  return Buffer.from(data); // string
+}
 
 server.listen(8080, () => {
   console.log("WS voice server on ws://localhost:8080/ws");

@@ -5,6 +5,7 @@ import ffmpegPath from "ffmpeg-static";
 // @ts-ignore
 import ffprobePath from "ffprobe-static";
 import OpenAI from "openai";
+import { chat } from "./openaiChat";
 
 ffmpeg.setFfmpegPath(ffmpegPath!);
 ffmpeg.setFfprobePath(ffprobePath.path);
@@ -21,21 +22,30 @@ export class VoiceProcessor {
   private wavPath = `${this.tmpDir}/${this.id}.wav`;
 
   private onTranscription: (text: string) => void;
-  private onTranscriptionStart?: () => void;
+  private onChatResponse: (text: string) => void;
 
   // ===== thresholds =====
   private minSizeBytes = 30_000;   // ~0.3s
   private minDurationSec = 0.4;    // real speech
   private maxDurationSec = 30;     // safety
 
+  private sku = '';
+  private sessionId = '';
+  private locationName = '';
+
   constructor(
     onTranscription: (text: string) => void,
-    onTranscriptionStart?: () => void
+    onChatResponse: (text: string) => void
   ) {
     this.onTranscription = onTranscription;
-    this.onTranscriptionStart = onTranscriptionStart;
+    this.onChatResponse = onChatResponse;
   }
 
+  setWSProductData (sku: string, sessionId: string, locationName: string) {
+    this.sku = sku;
+    this.sessionId = sessionId;
+    this.locationName = locationName;
+  }
   // =====================
   // Entry point
   // =====================
@@ -59,12 +69,15 @@ export class VoiceProcessor {
 
     await this.convertWebmToWav();
 
-    if (this.onTranscriptionStart) {
-      this.onTranscriptionStart();
-    }
 
     const text = await this.transcribe();
     this.onTranscription(text);
+
+    const chatResult = await chat({
+        body: { productId: this.sku, message: text, sessionId: this.sessionId, locationName: this.locationName },
+    })
+
+    this.onChatResponse(chatResult.answer);
 
     this.cleanup();
   }
@@ -100,6 +113,7 @@ export class VoiceProcessor {
       model: "gpt-4o-transcribe",
       language: "en",
     });
+
     return res.text;
   }
 
