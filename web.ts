@@ -153,6 +153,6 @@ wss.on("connection", (ws) => {
 
 
 
-server.listen(3000, () => {
-  console.log("WS voice server on ws://localhost:3000/ws");
+server.listen(8080, () => {
+  console.log("WS voice server on ws://localhost:8080/ws");
 });

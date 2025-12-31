@@ -316,7 +316,7 @@
   function startWS() {
     btn.disabled = true;
 
-    ws = new WebSocket("wss://medihubai-476149103615.australia-southeast1.run.app:3000/ws");
+    ws = new WebSocket("wss://medihubai-476149103615.australia-southeast1.run.app:8080/ws");
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
