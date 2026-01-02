@@ -551,6 +551,12 @@ pre#log {
   /* =====================
      Speech Detection
   ===================== */
+let dominantDb = -Infinity;
+let dominantHoldUntil = 0;
+
+const DOMINANCE_MARGIN_DB = 6;   // Must be this much louder than others
+const DOMINANCE_HOLD_MS = 400;   // Prevent rapid switching
+
 function detectSpeech() {
   if (!recording) return;
 
@@ -568,7 +574,7 @@ function detectSpeech() {
   const db = 20 * Math.log10(rms || 1e-8);
 
   /* =====================
-     ZCR (Zero Crossing Rate)
+     ZCR
   ===================== */
   let zeroCrossings = 0;
   for (let i = 1; i < len; i++) {
@@ -598,23 +604,38 @@ function detectSpeech() {
   }
 
   /* =====================
-     SPEECH DECISION
+     Speech candidate
   ===================== */
   const thresholdDb = noiseFloorDb + SPEECH_MARGIN_DB;
+  const isSpeech =
+    db > thresholdDb &&
+    zcr > 0.01 &&
+    zcr < 0.2;
 
-  const isLoudEnough = db > thresholdDb;
+  /* =====================
+     Dominant loudness logic
+  ===================== */
+  if (isSpeech) {
+    // If much louder than current dominant speaker
+    if (
+      db > dominantDb + DOMINANCE_MARGIN_DB ||
+      now > dominantHoldUntil
+    ) {
+      dominantDb = db;
+      dominantHoldUntil = now + DOMINANCE_HOLD_MS;
 
-  // Speech-like ZCR range (tuned)
-  const isSpeechZCR = zcr > 0.01 && zcr < 0.2;
+      gateOpen = true;
+      gateHoldUntil = now + GATE_HOLD_MS;
+      speechStart ??= now;
+    } else if (db >= dominantDb - 2) {
+      // Same dominant speaker continuing
+      gateOpen = true;
+      gateHoldUntil = now + GATE_HOLD_MS;
+    }
+    // Else: quieter speaker → ignored
+  }
 
-  // Combined decision
-  const speechCandidate = isLoudEnough && isSpeechZCR;
-
-  if (speechCandidate) {
-    gateOpen = true;
-    gateHoldUntil = now + GATE_HOLD_MS;
-    speechStart ??= now;
-  } else if (now > gateHoldUntil) {
+  if (!isSpeech && now > gateHoldUntil) {
     gateOpen = false;
     speechStart = null;
   }
@@ -625,7 +646,7 @@ function detectSpeech() {
     now - speechStart > MIN_SPEECH_MS;
 
   /* =====================
-     Silence / Sentence Logic
+     Silence logic
   ===================== */
   if (!speaking) {
     silenceStart ??= Date.now();
@@ -634,12 +655,14 @@ function detectSpeech() {
     if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
       silenceStart = null;
       cutSentence();
+
+      // Reset dominance after silence
+      dominantDb = -Infinity;
     }
 
-    // Slowly adapt noise floor only when silent
     noiseFloorDb += (db - noiseFloorDb) * NOISE_LEARN_RATE;
   } else {
-    btn.textContent = "🎙 Speaking…";
+    btn.textContent = "🎙 Dominant speaker…";
     silenceStart = null;
   }
 
