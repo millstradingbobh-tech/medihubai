@@ -369,6 +369,7 @@ pre#log {
   let ws;
   let recorder;
   let stream;
+  let filteredStream;
   let recording = false;
 
   // Silence detection
@@ -378,9 +379,20 @@ pre#log {
   // Per-sentence buffering
   let sentenceChunks = [];
 
-  const SILENCE_THRESHOLD_DB = -50;
+  const CALIBRATION_MS = 1500;
+  const SPEECH_MARGIN_DB = 14;
+  const NOISE_LEARN_RATE = 0.05;
+  const GATE_HOLD_MS = 200;
+  const MIN_SPEECH_MS = 120;
   const SILENCE_DURATION_MS = 1000;
   const MIN_BLOB_SIZE = 33000;
+
+  let noiseFloorDb = -90;
+  let calibrated = false;
+  let calibrationStart = null;
+  let gateOpen = false;
+  let gateHoldUntil = 0;
+  let speechStart = null;
 
   function log(msg) {
     logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
@@ -451,10 +463,33 @@ pre#log {
      Recording
   ===================== */
   async function startRecording() {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
 
     audioCtx = new AudioContext();
     const source = audioCtx.createMediaStreamSource(stream);
+
+    const highPass = audioCtx.createBiquadFilter();
+    highPass.type = "highpass";
+    highPass.frequency.value = 120;
+
+    const lowPass = audioCtx.createBiquadFilter();
+    lowPass.type = "lowpass";
+    lowPass.frequency.value = 4000;
+
+    const destination = audioCtx.createMediaStreamDestination();
+
+    source.connect(highPass);
+    highPass.connect(lowPass);
+    lowPass.connect(destination);
+
+    filteredStream = destination.stream;
+    
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 2048;
     dataArray = new Float32Array(analyser.fftSize);
@@ -470,7 +505,7 @@ pre#log {
     logEl.style.display = "block";
 
     startNewRecorder();
-    detectSilence();
+    detectSpeech();
 
     log("Recording started");
   }
@@ -481,7 +516,7 @@ pre#log {
   function startNewRecorder() {
     sentenceChunks = [];
 
-    recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    recorder = new MediaRecorder(filteredStream, { mimeType: "audio/webm" });
 
     recorder.ondataavailable = e => {
       if (e.data.size > 0) {
@@ -501,7 +536,7 @@ pre#log {
         )
         convertChatHistory();
         ws.send(blob);
-        log(`Sent sentence (${Math.round(blob.size / 1024)} KB)`);
+        log(`Sent speech (${Math.round(blob.size / 1024)} KB)`);
       }
 
       // Immediately start next sentence if still recording
@@ -514,32 +549,103 @@ pre#log {
   }
 
   /* =====================
-     Silence Detection
+     Speech Detection
   ===================== */
-  function detectSilence() {
-    if (!recording) return;
+function detectSpeech() {
+  if (!recording) return;
 
-    analyser.getFloatTimeDomainData(dataArray);
+  analyser.getFloatTimeDomainData(dataArray);
 
-    let sum = 0;
-    for (const v of dataArray) sum += v * v;
-    const rms = Math.sqrt(sum / dataArray.length);
-    const db = 20 * Math.log10(rms || 1e-8);
+  const now = performance.now();
+  const len = dataArray.length;
 
-    if (db < SILENCE_THRESHOLD_DB) {
-      btn.textContent = "Stop Recording";
-      silenceStart ??= Date.now();
-      if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
-        silenceStart = null;
-        cutSentence();
-      }
-    } else {
-      btn.textContent = "...Recording...";
-      silenceStart = null;
+  /* =====================
+     RMS + dB
+  ===================== */
+  let sum = 0;
+  for (let i = 0; i < len; i++) sum += dataArray[i] ** 2;
+  const rms = Math.sqrt(sum / len);
+  const db = 20 * Math.log10(rms || 1e-8);
+
+  /* =====================
+     ZCR (Zero Crossing Rate)
+  ===================== */
+  let zeroCrossings = 0;
+  for (let i = 1; i < len; i++) {
+    if ((dataArray[i - 1] >= 0) !== (dataArray[i] >= 0)) {
+      zeroCrossings++;
+    }
+  }
+  const zcr = zeroCrossings / len;
+
+  /* =====================
+     Calibration
+  ===================== */
+  if (!calibrated) {
+    calibrationStart ??= now;
+    noiseFloorDb += (db - noiseFloorDb) * 0.2;
+    btn.textContent = "Calibrating silence…";
+
+    if (now - calibrationStart > CALIBRATION_MS) {
+      calibrated = true;
+      noiseFloorDb = Math.min(noiseFloorDb, -45);
+      noiseFloorDb = Math.max(noiseFloorDb, -75);
+      log(`Noise floor: ${noiseFloorDb.toFixed(1)} dB`);
     }
 
-    requestAnimationFrame(detectSilence);
+    requestAnimationFrame(detectSpeech);
+    return;
   }
+
+  /* =====================
+     SPEECH DECISION
+  ===================== */
+  const thresholdDb = noiseFloorDb + SPEECH_MARGIN_DB;
+
+  const isLoudEnough = db > thresholdDb;
+
+  // Speech-like ZCR range (tuned)
+  const isSpeechZCR = zcr > 0.01 && zcr < 0.2;
+
+  // Combined decision
+  const speechCandidate = isLoudEnough && isSpeechZCR;
+
+  if (speechCandidate) {
+    gateOpen = true;
+    gateHoldUntil = now + GATE_HOLD_MS;
+    speechStart ??= now;
+  } else if (now > gateHoldUntil) {
+    gateOpen = false;
+    speechStart = null;
+  }
+
+  const speaking =
+    gateOpen &&
+    speechStart &&
+    now - speechStart > MIN_SPEECH_MS;
+
+  /* =====================
+     Silence / Sentence Logic
+  ===================== */
+  if (!speaking) {
+    silenceStart ??= Date.now();
+    btn.textContent = "Listening…";
+
+    if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
+      silenceStart = null;
+      cutSentence();
+    }
+
+    // Slowly adapt noise floor only when silent
+    noiseFloorDb += (db - noiseFloorDb) * NOISE_LEARN_RATE;
+  } else {
+    btn.textContent = "🎙 Speaking…";
+    silenceStart = null;
+  }
+
+  requestAnimationFrame(detectSpeech);
+}
+
 
   /* =====================
      Cut sentence (FINALIZE WEBM)

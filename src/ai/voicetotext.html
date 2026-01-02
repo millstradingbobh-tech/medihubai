@@ -2,70 +2,58 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Voice Recorder & Silence Detection</title>
+<title>Speech-Only Voice Recorder</title>
 <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-      background: #121212;
-      color: #e0e0e0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem;
-      min-height: 100vh;
-      margin: 0;
-    }
+  body {
+    font-family: system-ui;
+    background: #121212;
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem;
+    min-height: 100vh;
+    margin: 0;
+  }
 
-    button {
-      padding: 1rem 2rem;
-      font-size: 1.25rem;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      background: #6200ee;
-      color: white;
-      transition: background-color 0.3s ease;
-      box-shadow: 0 4px 8px rgb(98 0 238 / 0.3);
-      user-select: none;
-    }
+  button {
+    padding: 1rem 2rem;
+    font-size: 1.25rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #6200ee;
+    color: white;
+    box-shadow: 0 4px 8px rgba(98,0,238,.3);
+  }
 
-    button:disabled {
-      background: #555;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
 
-    button:hover:not(:disabled) {
-      background: #3700b3;
-    }
+  pre {
+    background: #1e1e1e;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1.5rem;
+    width: 90vw;
+    max-width: 600px;
+    height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
 
-    pre {
-      background: #1e1e1e;
-      border-radius: 8px;
-      padding: 1rem;
-      margin-top: 1.5rem;
-      width: 90vw;
-      max-width: 600px;
-      height: 300px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      box-shadow: inset 0 0 10px rgb(0 0 0 / 0.7);
-      font-size: 1rem;
-      line-height: 1.4;
-    }
-
-    header {
-      margin-bottom: 1.5rem;
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: #bb86fc;
-    }
-  </style>
+  header {
+    font-size: 1.5rem;
+    color: #bb86fc;
+    margin-bottom: 1rem;
+  }
+</style>
 </head>
 <body>
 
-<header>Voice Recorder Playground</header>
+<header>Speech-Only Recorder</header>
 <button id="btn">Start Recording</button>
 <pre id="log"></pre>
 
@@ -73,22 +61,37 @@
 const btn = document.getElementById("btn");
 const logEl = document.getElementById("log");
 
-let ws;
-let recorder;
-let stream;
-let recording = false;
-
-// Silence detection
+let ws, recorder, stream;
 let audioCtx, analyser, dataArray;
-let silenceStart = null;
-
-// Per-sentence buffering
+let filteredStream;
+let recording = false;
 let sentenceChunks = [];
 
-const SILENCE_THRESHOLD_DB = -50;
+/* =====================
+   SPEECH GATE CONSTANTS
+===================== */
+const CALIBRATION_MS = 1500;
+const SPEECH_MARGIN_DB = 14;
+const NOISE_LEARN_RATE = 0.05;
+const GATE_HOLD_MS = 200;
+const MIN_SPEECH_MS = 120;
 const SILENCE_DURATION_MS = 1000;
 const MIN_BLOB_SIZE = 33000;
 
+/* =====================
+   SPEECH GATE STATE
+===================== */
+let noiseFloorDb = -90;
+let calibrated = false;
+let calibrationStart = null;
+let gateOpen = false;
+let gateHoldUntil = 0;
+let speechStart = null;
+let silenceStart = null;
+
+/* =====================
+   Utils
+===================== */
 function log(msg) {
   logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
   logEl.scrollTop = logEl.scrollHeight;
@@ -101,16 +104,21 @@ btn.onclick = () => recording ? stopRecording() : startWS();
 ===================== */
 function startWS() {
   btn.disabled = true;
-  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  ws = new WebSocket(isLocalhost ?  `ws://localhost:8080/ws` : "wss://medihubai-476149103615.australia-southeast1.run.app/ws");
-  ws.binaryType = "arraybuffer";
+
+  const isLocalhost = ["localhost", "127.0.0.1"].includes(location.hostname);
+  ws = new WebSocket(
+    isLocalhost
+      ? "ws://localhost:8080/ws"
+      : "wss://medihubai-476149103615.australia-southeast1.run.app/ws"
+  );
 
   ws.onopen = () => {
     log("WebSocket connected");
+    ws.send(JSON.stringify({ type: "init" }));
     startRecording();
   };
 
-  ws.onmessage = (e) => {
+  ws.onmessage = e => {
     try {
       const msg = JSON.parse(e.data);
       if (msg.type === "transcription") {
@@ -124,63 +132,83 @@ function startWS() {
 }
 
 /* =====================
-   Recording
+   Recording Setup
 ===================== */
 async function startRecording() {
-  stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+  });
 
   audioCtx = new AudioContext();
   const source = audioCtx.createMediaStreamSource(stream);
+
+  /* 🎯 Speech band filtering */
+  const highPass = audioCtx.createBiquadFilter();
+  highPass.type = "highpass";
+  highPass.frequency.value = 120;
+
+  const lowPass = audioCtx.createBiquadFilter();
+  lowPass.type = "lowpass";
+  lowPass.frequency.value = 4000;
+
+  const destination = audioCtx.createMediaStreamDestination();
+
+  source.connect(highPass);
+  highPass.connect(lowPass);
+  lowPass.connect(destination);
+
+  filteredStream = destination.stream;
+
+  /* 🔍 Analyzer (unfiltered for detection) */
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
   dataArray = new Float32Array(analyser.fftSize);
   source.connect(analyser);
 
   recording = true;
-  btn.textContent = "Stop Recording";
+  btn.textContent = "Calibrating…";
   btn.disabled = false;
 
   startNewRecorder();
-  detectSilence();
+  detectSpeech();
 
   log("Recording started");
 }
 
 /* =====================
-   MediaRecorder per sentence
+   MediaRecorder
 ===================== */
 function startNewRecorder() {
   sentenceChunks = [];
 
-  recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+  recorder = new MediaRecorder(filteredStream, { mimeType: "audio/webm" });
 
   recorder.ondataavailable = e => {
-    if (e.data.size > 0) {
-      sentenceChunks.push(e.data);
-    }
+    if (e.data.size > 0) sentenceChunks.push(e.data);
   };
 
   recorder.onstop = () => {
     const blob = new Blob(sentenceChunks, { type: "audio/webm" });
 
-    if (blob.size >= MIN_BLOB_SIZE && ws?.readyState === WebSocket.OPEN) {
+    if (blob.size >= MIN_BLOB_SIZE && ws?.readyState === 1) {
       ws.send(blob);
-      log(`Sent sentence (${Math.round(blob.size / 1024)} KB)`);
+      log(`Sent speech (${Math.round(blob.size / 1024)} KB)`);
     }
 
-    // Immediately start next sentence if still recording
-    if (recording) {
-      startNewRecorder();
-    }
+    if (recording) startNewRecorder();
   };
 
   recorder.start();
 }
 
 /* =====================
-   Silence Detection
+   Speech Detection
 ===================== */
-function detectSilence() {
+function detectSpeech() {
   if (!recording) return;
 
   analyser.getFloatTimeDomainData(dataArray);
@@ -189,26 +217,66 @@ function detectSilence() {
   for (const v of dataArray) sum += v * v;
   const rms = Math.sqrt(sum / dataArray.length);
   const db = 20 * Math.log10(rms || 1e-8);
+  const now = performance.now();
 
-  if (db < SILENCE_THRESHOLD_DB) {
+  /* -------- Calibration -------- */
+  if (!calibrated) {
+    calibrationStart ??= now;
+    noiseFloorDb += (db - noiseFloorDb) * 0.2;
+    btn.textContent = "Calibrating silence…";
+
+    if (now - calibrationStart > CALIBRATION_MS) {
+      calibrated = true;
+      noiseFloorDb = Math.min(noiseFloorDb, -45);
+      noiseFloorDb = Math.max(noiseFloorDb, -75);
+      log(`Noise floor: ${noiseFloorDb.toFixed(1)} dB`);
+    }
+
+    requestAnimationFrame(detectSpeech);
+    return;
+  }
+
+  /* -------- Speech gate -------- */
+  const threshold = noiseFloorDb + SPEECH_MARGIN_DB;
+
+  if (db > threshold) {
+    gateOpen = true;
+    gateHoldUntil = now + GATE_HOLD_MS;
+    speechStart ??= now;
+  } else if (now > gateHoldUntil) {
+    gateOpen = false;
+    speechStart = null;
+  }
+
+  const speaking =
+    gateOpen &&
+    speechStart &&
+    now - speechStart > MIN_SPEECH_MS;
+
+  if (!speaking) {
     silenceStart ??= Date.now();
+    btn.textContent = "Listening…";
+
     if (Date.now() - silenceStart > SILENCE_DURATION_MS) {
       silenceStart = null;
       cutSentence();
     }
+
+    // Learn noise slowly only when silent
+    noiseFloorDb += (db - noiseFloorDb) * NOISE_LEARN_RATE;
   } else {
+    btn.textContent = "🎙 Speaking…";
     silenceStart = null;
   }
 
-  requestAnimationFrame(detectSilence);
+  requestAnimationFrame(detectSpeech);
 }
 
 /* =====================
-   Cut sentence (FINALIZE WEBM)
+   Cut sentence
 ===================== */
 function cutSentence() {
-  if (!recorder || recorder.state !== "recording") return;
-  recorder.stop(); // 🔑 FINALIZES WEBM
+  if (recorder?.state === "recording") recorder.stop();
 }
 
 /* =====================
@@ -219,20 +287,14 @@ function stopRecording() {
   btn.textContent = "Start Recording";
   btn.disabled = false;
 
-  if (recorder?.state === "recording") {
-    recorder.stop();
-  }
-
+  recorder?.state === "recording" && recorder.stop();
   stream?.getTracks().forEach(t => t.stop());
   audioCtx?.close();
-
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "stop" }));
-    ws.close();
-  }
+  ws?.readyState === 1 && ws.close();
 
   log("Recording stopped");
 }
 </script>
+
 </body>
 </html>
